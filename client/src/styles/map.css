@@ -35,7 +35,7 @@
   color: white !important;
 }
 
-/* GeoJSON polygon transitions */
+/* GeoJSON polygon transitions — smooth recolour when data/filter changes */
 .leaflet-interactive {
-  transition: fill-opacity 0.3s ease;
+  transition: fill 0.2s ease, fill-opacity 0.2s ease;
 }

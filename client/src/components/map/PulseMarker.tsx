@@ -1,7 +1,6 @@
 import { DivIcon, divIcon } from 'leaflet';
 import { Marker } from 'react-leaflet';
 import { WardCentroid } from '../../types/ward';
-import { scoreToColor } from '../../utils/colorScale';
 
 interface Props {
   centroid: WardCentroid;
@@ -9,38 +8,23 @@ interface Props {
 }
 
 export function PulseMarker({ centroid, score }: Props) {
-  const color = scoreToColor(score);
-  // Faster animation for higher scores
-  const duration = Math.max(0.8, 2.2 - score * 1.4);
-  const size = Math.round(10 + score * 20);
+  // Single color per severity band — amber for moderate, red for severe
+  const color = score >= 0.75 ? '#ef4444' : '#f59e0b';
+  const duration = Math.max(1.0, 2.4 - score * 1.6);
+  const size = 18; // fixed size — pulse animation conveys intensity
 
   const icon: DivIcon = divIcon({
     className: '',
     html: `
-      <div class="pulse-wrapper" style="position:relative;width:${size}px;height:${size}px;">
-        <div class="pulse-ring" style="
-          position:absolute;
-          inset:0;
-          border-radius:50%;
-          border:2px solid ${color};
-          animation:pulse-ring ${duration}s linear infinite;
-          opacity:0.8;
-        "></div>
-        <div class="pulse-ring" style="
-          position:absolute;
-          inset:0;
-          border-radius:50%;
-          border:2px solid ${color};
-          animation:pulse-ring ${duration}s linear infinite;
-          animation-delay:${duration / 2}s;
-          opacity:0.5;
+      <div style="position:relative;width:${size}px;height:${size}px;pointer-events:none;">
+        <div style="
+          position:absolute;inset:0;border-radius:50%;
+          border:1.5px solid ${color};opacity:0.7;
+          animation:pulse-ring ${duration}s ease-out infinite;
         "></div>
         <div style="
-          position:absolute;
-          inset:25%;
-          border-radius:50%;
-          background:${color};
-          opacity:0.9;
+          position:absolute;inset:30%;border-radius:50%;
+          background:${color};opacity:0.85;
         "></div>
       </div>
     `,

@@ -3,7 +3,6 @@ import { MapContainer } from './components/map/MapContainer';
 import { ChoroplethLayer } from './components/map/ChoroplethLayer';
 import { PulseLayer } from './components/map/PulseLayer';
 import { HoverPanel } from './components/map/HoverPanel';
-import { MapLegend } from './components/map/MapLegend';
 import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -26,16 +25,11 @@ function MapApp() {
       overflow: 'hidden',
       background: '#020617',
     }}>
-      {/* Top bar — branding + status only */}
       <TopBar />
 
-      {/* Main content: sidebar + map */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-
-        {/* Left sidebar — controls + intelligence */}
         <Sidebar />
 
-        {/* Map viewport */}
         <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
           <ErrorBoundary>
             <MapContainer>
@@ -44,9 +38,7 @@ function MapApp() {
             </MapContainer>
           </ErrorBoundary>
 
-          {/* Map overlays */}
           <HoverPanel />
-          <MapLegend />
         </div>
       </div>
     </div>

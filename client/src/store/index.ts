@@ -25,6 +25,7 @@ interface Store {
 
   // UI
   hoveredWardName: string | null;
+  showPulses: boolean;
 
   // Actions
   setActiveCategory: (cat: string | null) => void;
@@ -38,6 +39,7 @@ interface Store {
   setIsLoadingCity: (loading: boolean) => void;
   setWardError: (err: string | null) => void;
   setHoveredWardName: (name: string | null) => void;
+  setShowPulses: (show: boolean) => void;
 }
 
 export const useStore = create<Store>((set) => ({
@@ -57,6 +59,7 @@ export const useStore = create<Store>((set) => ({
   wardError: null,
 
   hoveredWardName: null,
+  showPulses: true,
 
   setActiveCategory: (cat) => set({ activeCategory: cat }),
   setTimeFilter: (time) => set({ timeFilter: time }),
@@ -75,4 +78,5 @@ export const useStore = create<Store>((set) => ({
   setIsLoadingCity: (loading) => set({ isLoadingCity: loading }),
   setWardError: (err) => set({ wardError: err }),
   setHoveredWardName: (name) => set({ hoveredWardName: name }),
+  setShowPulses: (show) => set({ showPulses: show }),
 }));

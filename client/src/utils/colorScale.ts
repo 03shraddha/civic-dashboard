@@ -1,10 +1,9 @@
-// 5-stop color scale: deep blue → teal → amber → orange → dark crimson
+// Restrained 3-stop scale: neutral slate → amber → red
+// Neutral base blends with map background; amber = caution; red = severe
 const STOPS: Array<{ score: number; r: number; g: number; b: number }> = [
-  { score: 0.00, r: 0x1e, g: 0x3a, b: 0x5f },
-  { score: 0.25, r: 0x0d, g: 0x73, b: 0x77 },
-  { score: 0.50, r: 0xf4, g: 0xa5, b: 0x00 },
-  { score: 0.75, r: 0xe8, g: 0x5d, b: 0x04 },
-  { score: 1.00, r: 0x9b, g: 0x00, b: 0x00 },
+  { score: 0.00, r: 0x1e, g: 0x29, b: 0x3b }, // slate-800  — low stress
+  { score: 0.50, r: 0xf5, g: 0x9e, b: 0x0b }, // amber-500  — moderate
+  { score: 1.00, r: 0xef, g: 0x44, b: 0x44 }, // red-500    — severe
 ];
 
 function lerp(a: number, b: number, t: number): number {
@@ -18,7 +17,6 @@ function toHex(n: number): string {
 export function scoreToColor(score: number): string {
   const clamped = Math.max(0, Math.min(1, score));
 
-  // Find surrounding stops
   let lo = STOPS[0];
   let hi = STOPS[STOPS.length - 1];
   for (let i = 0; i < STOPS.length - 1; i++) {
@@ -30,11 +28,7 @@ export function scoreToColor(score: number): string {
   }
 
   const t = hi.score === lo.score ? 0 : (clamped - lo.score) / (hi.score - lo.score);
-  const r = lerp(lo.r, hi.r, t);
-  const g = lerp(lo.g, hi.g, t);
-  const b = lerp(lo.b, hi.b, t);
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  return `#${toHex(lerp(lo.r, hi.r, t))}${toHex(lerp(lo.g, hi.g, t))}${toHex(lerp(lo.b, hi.b, t))}`;
 }
 
 export const LEGEND_STOPS = STOPS.map(s => ({
