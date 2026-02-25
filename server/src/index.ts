@@ -7,7 +7,6 @@ import { startCron, runAggregation } from './cron';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
 const CLIENT_ORIGIN = process.env.CLIENT_ORIGIN || 'http://localhost:5173';
 
 app.use(cors({
@@ -18,25 +17,19 @@ app.use(cors({
 
 app.use(express.json());
 
-// Routes
 app.use('/health', healthRouter);
 app.use('/api/ward-stats', wardStatsRouter);
 app.use('/api/city-stats', cityStatsRouter);
 
-// 404
-app.use((req, res) => {
+app.use((_req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-app.listen(PORT, async () => {
+app.listen(PORT, () => {
   console.log(`[Server] Civic Pulse API running on port ${PORT}`);
   console.log(`[Server] Client origin: ${CLIENT_ORIGIN}`);
-
-  // Kick off initial aggregation for the most common window in background
-  console.log('[Server] Running initial aggregation for 7d window...');
-  runAggregation(['7d']).catch(console.error);
-
-  // Start cron for subsequent refreshes
+  console.log('[Server] Running initial aggregation (all windows)...');
+  runAggregation().catch(console.error);
   startCron();
 });
 

@@ -1,6 +1,5 @@
 import { Router, Request, Response } from 'express';
 import { getWardStats } from '../cache/store';
-import { runAggregation } from '../cron';
 import { WardStats } from '../utils/frustrationScore';
 
 const router = Router();
@@ -15,14 +14,15 @@ router.get('/', async (req: Request, res: Response) => {
     return;
   }
 
-  let cached = getWardStats(time);
+  const cached = getWardStats(time);
+
   if (!cached) {
-    await runAggregation([time]);
-    cached = getWardStats(time);
+    res.status(202).json({ warming: true, message: 'Server is warming up. Retry shortly.' });
+    return;
   }
 
-  if (!cached || cached.data.length === 0) {
-    res.status(503).json({ error: 'Data not yet available.' });
+  if (cached.data.length === 0) {
+    res.status(503).json({ error: 'No data available for this window.' });
     return;
   }
 

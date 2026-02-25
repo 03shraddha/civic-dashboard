@@ -5,9 +5,12 @@ import { parseNanoTimestamp, getWindowStart } from '../utils/dateParser';
 const RESOURCE_2025 = '1342a93b-9a61-4766-9c34-c8357b7926c2';
 const RESOURCE_2024 = '2a3f29ef-a7a1-4fc3-b125-cbcc958a89d1';
 
-const GRIEVANCE_FIELDS = ['Ward Name', 'Category', 'Sub Category', 'Grievance Status', 'Grievance Date', 'Complaint ID'];
+const GRIEVANCE_FIELDS = [
+  'Ward Name', 'Category', 'Sub Category',
+  'Grievance Status', 'Grievance Date', 'Complaint ID',
+];
 
-export interface FilteredGrievance {
+export interface ParsedGrievance {
   wardName: string;
   category: string;
   subCategory: string;
@@ -17,45 +20,37 @@ export interface FilteredGrievance {
 }
 
 /**
- * Select which resource IDs to query based on the time window.
- * For windows that span into 2024 we also include the 2024 dataset.
+ * Fetch ALL grievance records from both 2025 and 2024 datasets ONCE.
+ * Returns all parsed records; callers filter by date as needed.
+ * This avoids the double-fetch that was causing 3+ minute load times.
  */
-function selectResourceIds(timeWindow: string): string[] {
-  const now = new Date();
-  const windowStart = getWindowStart(timeWindow);
-  const ids: string[] = [RESOURCE_2025];
-  // If window goes back into 2024, also fetch 2024 data
-  if (windowStart.getFullYear() < now.getFullYear() || timeWindow === 'seasonal') {
-    ids.push(RESOURCE_2024);
-  }
-  return ids;
-}
+export async function fetchAllGrievanceRecords(include2024 = true): Promise<ParsedGrievance[]> {
+  const resourceIds = include2024
+    ? [RESOURCE_2025, RESOURCE_2024]
+    : [RESOURCE_2025];
 
-/**
- * Fetch and date-filter BBMP grievance records for a given time window.
- */
-export async function fetchGrievances(timeWindow: string): Promise<FilteredGrievance[]> {
-  const windowStart = getWindowStart(timeWindow);
-  const resourceIds = selectResourceIds(timeWindow);
+  console.log(`[GrievanceService] Fetching resources: ${resourceIds.join(', ')}`);
 
-  console.log(`[GrievanceService] Fetching for window=${timeWindow}, from=${windowStart.toISOString()}`);
+  // Fetch resources concurrently
+  const fetched = await Promise.all(
+    resourceIds.map(rid =>
+      fetchAllRecords<RawGrievanceRecord>(rid, GRIEVANCE_FIELDS).catch(err => {
+        console.error(`[GrievanceService] Failed to fetch ${rid}:`, err);
+        return [] as RawGrievanceRecord[];
+      })
+    )
+  );
 
-  const allRecords: RawGrievanceRecord[] = [];
-  for (const rid of resourceIds) {
-    const records = await fetchAllRecords<RawGrievanceRecord>(rid, GRIEVANCE_FIELDS);
-    allRecords.push(...records);
-  }
+  const allRaw = fetched.flat();
+  console.log(`[GrievanceService] Total raw records fetched: ${allRaw.length}`);
 
-  console.log(`[GrievanceService] Raw records fetched: ${allRecords.length}`);
-
-  const filtered: FilteredGrievance[] = [];
-  for (const r of allRecords) {
+  // Parse dates once — filter out records with no ward or unparseable date
+  const parsed: ParsedGrievance[] = [];
+  for (const r of allRaw) {
+    if (!r['Ward Name']) continue;
     const date = parseNanoTimestamp(r['Grievance Date']);
     if (!date) continue;
-    if (date < windowStart) continue;
-    if (!r['Ward Name']) continue;
-
-    filtered.push({
+    parsed.push({
       wardName: r['Ward Name'],
       category: r['Category'] || 'Unknown',
       subCategory: r['Sub Category'] || '',
@@ -65,49 +60,19 @@ export async function fetchGrievances(timeWindow: string): Promise<FilteredGriev
     });
   }
 
-  console.log(`[GrievanceService] After date filter: ${filtered.length} records`);
-  return filtered;
+  console.log(`[GrievanceService] Parsed ${parsed.length} records`);
+  return parsed;
 }
 
 /**
- * Fetch for the previous equivalent period (for trend calculation).
+ * Filter a pre-fetched list of records to a specific time window.
  */
-export async function fetchPreviousPeriodGrievances(timeWindow: string): Promise<FilteredGrievance[]> {
-  const windowStart = getWindowStart(timeWindow);
-  const windowDuration = Date.now() - windowStart.getTime();
-
-  // Previous period = same duration, shifted back
-  const prevEnd = windowStart;
-  const prevStart = new Date(windowStart.getTime() - windowDuration);
-
-  const resourceIds = [RESOURCE_2025, RESOURCE_2024];
-
-  const allRecords: RawGrievanceRecord[] = [];
-  for (const rid of resourceIds) {
-    try {
-      const records = await fetchAllRecords<RawGrievanceRecord>(rid, GRIEVANCE_FIELDS);
-      allRecords.push(...records);
-    } catch {
-      // Best effort
-    }
-  }
-
-  const filtered: FilteredGrievance[] = [];
-  for (const r of allRecords) {
-    const date = parseNanoTimestamp(r['Grievance Date']);
-    if (!date) continue;
-    if (date < prevStart || date >= prevEnd) continue;
-    if (!r['Ward Name']) continue;
-
-    filtered.push({
-      wardName: r['Ward Name'],
-      category: r['Category'] || 'Unknown',
-      subCategory: r['Sub Category'] || '',
-      status: r['Grievance Status'] || 'Unknown',
-      date,
-      id: r['Complaint ID'] || '',
-    });
-  }
-
-  return filtered;
+export function filterToWindow(
+  records: ParsedGrievance[],
+  windowStart: Date,
+  windowEnd: Date = new Date()
+): ParsedGrievance[] {
+  return records.filter(r => r.date >= windowStart && r.date < windowEnd);
 }
+
+export { getWindowStart };

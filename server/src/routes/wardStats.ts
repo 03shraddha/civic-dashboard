@@ -1,10 +1,8 @@
 import { Router, Request, Response } from 'express';
 import { getWardStats } from '../cache/store';
-import { runAggregation } from '../cron';
 import { WardStats } from '../utils/frustrationScore';
 
 const router = Router();
-
 const VALID_WINDOWS = new Set(['live', '24h', '7d', '30d', 'seasonal']);
 
 router.get('/', async (req: Request, res: Response) => {
@@ -16,24 +14,19 @@ router.get('/', async (req: Request, res: Response) => {
     return;
   }
 
-  // Check cache
-  let cached = getWardStats(time);
+  const cached = getWardStats(time);
 
-  // If not cached, run aggregation synchronously (first-time or stale)
+  // Return 202 immediately when cache is cold — client will poll /health and retry
   if (!cached) {
-    console.log(`[WardStats] Cache miss for ${time}, running aggregation...`);
-    await runAggregation([time]);
-    cached = getWardStats(time);
-  }
-
-  if (!cached) {
-    res.status(503).json({ error: 'Data not yet available. Please try again shortly.' });
+    res.status(202).json({
+      warming: true,
+      message: 'Server is aggregating data (~60s on first start). Please retry shortly.',
+    });
     return;
   }
 
   let wards: WardStats[] = cached.data;
 
-  // Filter by category if requested
   if (category) {
     const normalizedCat = category.toLowerCase();
     wards = wards.filter(w =>
@@ -41,11 +34,9 @@ router.get('/', async (req: Request, res: Response) => {
     );
   }
 
-  const totalComplaints = wards.reduce((sum, w) => sum + w.totalComplaints, 0);
-
   res.json({
     updatedAt: cached.updatedAt.toISOString(),
-    totalComplaints,
+    totalComplaints: wards.reduce((s, w) => s + w.totalComplaints, 0),
     timeWindow: time,
     category: category || null,
     wards,

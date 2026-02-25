@@ -1,24 +1,32 @@
 /**
- * Main aggregation pipeline: fetches data, normalizes ward names,
- * groups by ward, computes frustration scores.
+ * Main aggregation pipeline.
+ *
+ * Key design: fetch CKAN records ONCE, compute all 5 time windows in-memory.
+ * This avoids the previous 3+ minute cold-start caused by fetching the same
+ * 300k+ records multiple times.
  */
 import axios from 'axios';
-import { fetchGrievances, fetchPreviousPeriodGrievances, FilteredGrievance } from './grievanceService';
+import { fetchAllGrievanceRecords, filterToWindow, ParsedGrievance } from './grievanceService';
 import { fetchPotholeCounts } from './potholeService';
 import { WardNormalizer } from '../utils/wardNormalizer';
 import { WardRawMetrics, computeFrustrationScores, WardStats } from '../utils/frustrationScore';
+import { getWindowStart } from '../utils/dateParser';
+import { setWardStats } from '../cache/store';
 
 const DATAMEET_GEOJSON_URL =
   'https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Bangalore/BBMP.geojson';
 
 const STREETLIGHT_CATEGORIES = new Set(['Electrical']);
+const UNRESOLVED_STATUSES = new Set(['Registered', 'ReOpen']);
+
+const TIME_WINDOWS = ['live', '24h', '7d', '30d', 'seasonal'] as const;
 
 interface GeoFeature {
   type: 'Feature';
   properties: {
-    KGISWardNo?: number;
+    KGISWardNo?: string | number;
     KGISWardName?: string;
-    WARD_NO?: number;
+    WARD_NO?: string | number;
     WARD_NAME?: string;
     [key: string]: unknown;
   };
@@ -28,20 +36,15 @@ interface GeoFeature {
   };
 }
 
-// Longitude degree to km at Bengaluru latitude (12.97°N)
 const LAT_KM = 111.0;
 const LNG_KM = 108.2;
 
-/**
- * Compute area of a polygon in km² using the Shoelace formula.
- */
 function polygonAreaKm2(ring: number[][]): number {
   let area = 0;
   const n = ring.length;
   for (let i = 0; i < n; i++) {
     const [x1, y1] = ring[i];
     const [x2, y2] = ring[(i + 1) % n];
-    // Convert to km before computing area
     area += (x1 * LNG_KM) * (y2 * LAT_KM) - (x2 * LNG_KM) * (y1 * LAT_KM);
   }
   return Math.abs(area) / 2;
@@ -49,20 +52,13 @@ function polygonAreaKm2(ring: number[][]): number {
 
 function featureAreaKm2(geometry: GeoFeature['geometry']): number {
   if (geometry.type === 'Polygon') {
-    const coords = geometry.coordinates as number[][][];
-    return polygonAreaKm2(coords[0]);
-  } else {
-    // MultiPolygon: sum largest
-    const coords = geometry.coordinates as number[][][][];
-    return Math.max(...coords.map(poly => polygonAreaKm2(poly[0])));
+    return polygonAreaKm2((geometry.coordinates as number[][][])[0]);
   }
+  const coords = geometry.coordinates as number[][][][];
+  return Math.max(...coords.map(poly => polygonAreaKm2(poly[0])));
 }
 
-interface WardGeo {
-  name: string;
-  wardNo: number;
-  areaKm2: number;
-}
+interface WardGeo { name: string; wardNo: number; areaKm2: number }
 
 let _geoCache: WardGeo[] | null = null;
 
@@ -70,19 +66,13 @@ async function fetchWardGeo(): Promise<WardGeo[]> {
   if (_geoCache) return _geoCache;
   try {
     const resp = await axios.get(DATAMEET_GEOJSON_URL, { timeout: 30000 });
-    const features: GeoFeature[] = resp.data.features;
-
-    // Deduplicate by KGISWardNo, keep largest area
     const byNo = new Map<number, WardGeo>();
-    for (const f of features) {
-      const wardNo = f.properties.KGISWardNo ?? f.properties.WARD_NO ?? 0;
-      const name = f.properties.KGISWardName ?? f.properties.WARD_NAME ?? '';
+    for (const f of resp.data.features as GeoFeature[]) {
+      const wardNo = parseInt(String(f.properties.KGISWardNo ?? f.properties.WARD_NO ?? '0'), 10) || 0;
+      const name = String(f.properties.KGISWardName ?? f.properties.WARD_NAME ?? '');
       const area = featureAreaKm2(f.geometry);
-
       const existing = byNo.get(wardNo);
-      if (!existing || area > existing.areaKm2) {
-        byNo.set(wardNo, { name: String(name), wardNo: Number(wardNo), areaKm2: area });
-      }
+      if (!existing || area > existing.areaKm2) byNo.set(wardNo, { name, wardNo, areaKm2: area });
     }
     _geoCache = Array.from(byNo.values());
     console.log(`[Aggregator] Loaded ${_geoCache.length} ward geometries`);
@@ -93,83 +83,23 @@ async function fetchWardGeo(): Promise<WardGeo[]> {
   }
 }
 
-/**
- * Run full aggregation for a given time window.
- * Returns null if aggregation fails.
- */
-export async function aggregate(timeWindow: string): Promise<WardStats[] | null> {
-  console.log(`[Aggregator] Starting aggregation for window=${timeWindow}`);
+interface WardAccumulator {
+  total: number;
+  unresolved: number;
+  reopened: number;
+  closed: number;
+  streetlight: number;
+  categories: Map<string, number>;
+  recent: Array<{ id: string; category: string; subCategory: string; date: string; status: string }>;
+}
 
-  // Fetch all data in parallel
-  const [grievances, prevGrievances, potholeCounts, wardGeos] = await Promise.all([
-    fetchGrievances(timeWindow).catch(e => {
-      console.error('[Aggregator] Grievance fetch error:', e);
-      return [] as FilteredGrievance[];
-    }),
-    fetchPreviousPeriodGrievances(timeWindow).catch(() => [] as FilteredGrievance[]),
-    fetchPotholeCounts().catch(() => []),
-    fetchWardGeo(),
-  ]);
-
-  if (grievances.length === 0) {
-    console.warn('[Aggregator] No grievances fetched, returning empty result');
-    return [];
-  }
-
-  // Build canonical ward names from GeoJSON
-  const canonicalNames = wardGeos.map(w => w.name).filter(Boolean);
-
-  // Load manual ward name map if available
-  let manualMap: Record<string, string> = {};
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    manualMap = require('../../client/public/ward_name_map.json') as Record<string, string>;
-  } catch {
-    // File may not exist yet
-  }
-
-  const normalizer = new WardNormalizer(canonicalNames, manualMap);
-
-  // Build ward geo lookup
-  const geoByCanonical = new Map<string, WardGeo>();
-  for (const geo of wardGeos) {
-    geoByCanonical.set(geo.name, geo);
-  }
-
-  // Build pothole lookup (normalize names)
-  const potholeByCanonical = new Map<string, number>();
-  for (const p of potholeCounts) {
-    const canonical = normalizer.resolve(p.wardName);
-    if (canonical) {
-      potholeByCanonical.set(canonical, (potholeByCanonical.get(canonical) || 0) + p.complaints);
-    }
-  }
-
-  // Build previous period lookup
-  const prevByCanonical = new Map<string, number>();
-  for (const g of prevGrievances) {
-    const canonical = normalizer.resolve(g.wardName);
-    if (canonical) {
-      prevByCanonical.set(canonical, (prevByCanonical.get(canonical) || 0) + 1);
-    }
-  }
-
-  // Group grievances by canonical ward
-  interface WardAccumulator {
-    total: number;
-    unresolved: number;
-    reopened: number;
-    closed: number;
-    streetlight: number;
-    categories: Map<string, number>;
-    recent: Array<{ id: string; category: string; subCategory: string; date: string; status: string }>;
-  }
-
+function groupByWard(
+  records: ParsedGrievance[],
+  normalizer: WardNormalizer
+): Map<string, WardAccumulator> {
   const wardMap = new Map<string, WardAccumulator>();
 
-  const UNRESOLVED_STATUSES = new Set(['Registered', 'ReOpen']);
-
-  for (const g of grievances) {
+  for (const g of records) {
     const canonical = normalizer.resolve(g.wardName);
     if (!canonical) continue;
 
@@ -182,45 +112,40 @@ export async function aggregate(timeWindow: string): Promise<WardStats[] | null>
 
     const acc = wardMap.get(canonical)!;
     acc.total++;
-
-    const statusUpper = g.status;
-    if (UNRESOLVED_STATUSES.has(statusUpper)) acc.unresolved++;
-    if (statusUpper === 'ReOpen') acc.reopened++;
-    if (statusUpper === 'Closed') acc.closed++;
+    if (UNRESOLVED_STATUSES.has(g.status)) acc.unresolved++;
+    if (g.status === 'ReOpen') acc.reopened++;
+    if (g.status === 'Closed') acc.closed++;
     if (STREETLIGHT_CATEGORIES.has(g.category)) acc.streetlight++;
-
     acc.categories.set(g.category, (acc.categories.get(g.category) || 0) + 1);
-
     if (acc.recent.length < 5) {
       acc.recent.push({
-        id: g.id,
-        category: g.category,
-        subCategory: g.subCategory,
-        date: g.date.toISOString().slice(0, 10),
-        status: g.status,
+        id: g.id, category: g.category, subCategory: g.subCategory,
+        date: g.date.toISOString().slice(0, 10), status: g.status,
       });
     }
   }
 
-  // Assemble WardRawMetrics
+  return wardMap;
+}
+
+function buildWardStats(
+  wardMap: Map<string, WardAccumulator>,
+  prevByCanonical: Map<string, number>,
+  potholeByCanonical: Map<string, number>,
+  geoByCanonical: Map<string, WardGeo>
+): WardStats[] {
   const rawMetrics: WardRawMetrics[] = [];
 
   for (const [canonical, acc] of wardMap.entries()) {
     const geo = geoByCanonical.get(canonical);
-    const areaKm2 = geo?.areaKm2 ?? 0.5;
-    const wardNo = geo?.wardNo ?? 0;
-
     const categoryBreakdown: Record<string, number> = {};
     let dominantCategory = 'Unknown';
     let maxCount = 0;
+
     for (const [cat, cnt] of acc.categories.entries()) {
       categoryBreakdown[cat] = cnt;
       if (cnt > maxCount) { maxCount = cnt; dominantCategory = cat; }
     }
-
-    const resolutionRatePercent = acc.total > 0
-      ? Math.round((acc.closed / acc.total) * 1000) / 10
-      : 0;
 
     const prevTotal = prevByCanonical.get(canonical) ?? 0;
     const trend: 'rising' | 'falling' | 'stable' =
@@ -230,26 +155,115 @@ export async function aggregate(timeWindow: string): Promise<WardStats[] | null>
 
     rawMetrics.push({
       wardName: canonical,
-      wardNo,
+      wardNo: geo?.wardNo ?? 0,
       totalComplaints: acc.total,
       unresolvedComplaints: acc.unresolved,
       reopenedComplaints: acc.reopened,
       closedComplaints: acc.closed,
       potholeComplaints: potholeByCanonical.get(canonical) ?? 0,
       streetlightComplaints: acc.streetlight,
-      areaKm2,
+      areaKm2: geo?.areaKm2 ?? 0.5,
       categoryBreakdown,
       dominantCategory,
-      resolutionRatePercent,
+      resolutionRatePercent: acc.total > 0
+        ? Math.round((acc.closed / acc.total) * 1000) / 10 : 0,
       recentComplaints: acc.recent,
       trend,
       previousPeriodTotal: prevTotal,
     });
   }
 
-  console.log(`[Aggregator] Aggregated ${rawMetrics.length} wards`);
-
   const scored = computeFrustrationScores(rawMetrics);
   scored.sort((a, b) => b.frustrationScore - a.frustrationScore);
   return scored;
+}
+
+/**
+ * Run the full aggregation pipeline ONCE and populate cache for ALL time windows.
+ *
+ * Previously each window triggered its own CKAN fetch (double-fetching 300k+ records).
+ * Now we fetch all records once in parallel with the GeoJSON and potholes,
+ * then derive each time window via in-memory date filtering.
+ */
+export async function aggregateAll(): Promise<void> {
+  console.log('[Aggregator] Starting full aggregation (all windows)');
+  const startMs = Date.now();
+
+  // Determine if any window needs 2024 data
+  const oldest = getWindowStart('seasonal');
+  const need2024 = oldest.getFullYear() < new Date().getFullYear();
+
+  // ── Fetch everything in parallel ──────────────────────────────────────────
+  const [allRecords, potholeCounts, wardGeos] = await Promise.all([
+    fetchAllGrievanceRecords(need2024).catch(err => {
+      console.error('[Aggregator] Grievance fetch failed:', err);
+      return [] as ParsedGrievance[];
+    }),
+    fetchPotholeCounts().catch(() => []),
+    fetchWardGeo(),
+  ]);
+
+  if (allRecords.length === 0) {
+    console.warn('[Aggregator] No records fetched, aborting.');
+    return;
+  }
+
+  console.log(`[Aggregator] Fetch complete in ${((Date.now() - startMs) / 1000).toFixed(1)}s — ${allRecords.length} records`);
+
+  // ── Build lookup tables (done once, reused per window) ───────────────────
+  const canonicalNames = wardGeos.map(w => w.name).filter(Boolean);
+  let manualMap: Record<string, string> = {};
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    manualMap = require('../../client/public/ward_name_map.json') as Record<string, string>;
+  } catch { /* fine if missing */ }
+
+  const normalizer = new WardNormalizer(canonicalNames, manualMap);
+
+  const geoByCanonical = new Map<string, WardGeo>(wardGeos.map(g => [g.name, g]));
+
+  const potholeByCanonical = new Map<string, number>();
+  for (const p of potholeCounts) {
+    const canonical = normalizer.resolve(p.wardName);
+    if (canonical) potholeByCanonical.set(canonical, (potholeByCanonical.get(canonical) || 0) + p.complaints);
+  }
+
+  // ── Compute each time window from the same in-memory records ─────────────
+  const now = new Date();
+
+  for (const window of TIME_WINDOWS) {
+    const windowStart = getWindowStart(window);
+    const windowDurationMs = now.getTime() - windowStart.getTime();
+    const prevStart = new Date(windowStart.getTime() - windowDurationMs);
+
+    const current = filterToWindow(allRecords, windowStart, now);
+    const previous = filterToWindow(allRecords, prevStart, windowStart);
+
+    console.log(`[Aggregator] Window=${window}: current=${current.length}, previous=${previous.length}`);
+
+    const wardMap = groupByWard(current, normalizer);
+
+    // Previous period totals per ward
+    const prevByCanonical = new Map<string, number>();
+    for (const g of previous) {
+      const canonical = normalizer.resolve(g.wardName);
+      if (canonical) prevByCanonical.set(canonical, (prevByCanonical.get(canonical) || 0) + 1);
+    }
+
+    const stats = buildWardStats(wardMap, prevByCanonical, potholeByCanonical, geoByCanonical);
+    setWardStats(window, stats);
+    console.log(`[Aggregator] Cached ${stats.length} wards for window=${window}`);
+  }
+
+  console.log(`[Aggregator] All windows done in ${((Date.now() - startMs) / 1000).toFixed(1)}s`);
+}
+
+/**
+ * Legacy single-window aggregation — kept for on-demand route fallback.
+ * Calls aggregateAll() and returns results for the requested window.
+ */
+export async function aggregate(timeWindow: string): Promise<WardStats[] | null> {
+  await aggregateAll();
+  const { getWardStats } = await import('../cache/store');
+  return getWardStats(timeWindow)?.data ?? [];
 }
