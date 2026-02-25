@@ -23,7 +23,7 @@ function MapApp() {
       height: '100vh',
       width: '100vw',
       overflow: 'hidden',
-      background: '#020617',
+      background: '#f8fafc',
     }}>
       <TopBar />
 

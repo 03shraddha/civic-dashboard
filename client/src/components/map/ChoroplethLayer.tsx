@@ -21,10 +21,10 @@ export function ChoroplethLayer() {
     const score = stats?.frustrationScore ?? 0;
 
     return {
-      fillColor: score > 0 ? scoreToColor(score) : '#111827',
-      fillOpacity: score > 0 ? 0.82 : 0.12,
-      color: '#0f172a',
-      weight: 0.5,
+      fillColor: score > 0 ? scoreToColor(score) : '#f1f5f9',
+      fillOpacity: score > 0 ? 0.75 : 0.4,
+      color: '#cbd5e1',
+      weight: 0.8,
       opacity: 1,
     };
   }
@@ -34,16 +34,16 @@ export function ChoroplethLayer() {
 
     layer.on({
       mouseover: (e: LeafletMouseEvent) => {
-        e.target.setStyle({ weight: 1.5, color: '#94a3b8', fillOpacity: 0.95 });
+        e.target.setStyle({ weight: 2, color: '#6366f1', fillOpacity: 0.9 });
         e.target.bringToFront();
         setHoveredWardName(wardName);
       },
       mouseout: (e: LeafletMouseEvent) => {
         const score = wardStats.get(wardName)?.frustrationScore ?? 0;
         e.target.setStyle({
-          weight: 0.5,
-          color: '#0f172a',
-          fillOpacity: score > 0 ? 0.82 : 0.12,
+          weight: 0.8,
+          color: '#cbd5e1',
+          fillOpacity: score > 0 ? 0.75 : 0.4,
         });
         setHoveredWardName(null);
       },

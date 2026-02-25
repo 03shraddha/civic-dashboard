@@ -14,58 +14,54 @@ export function TopBar() {
 
   return (
     <div style={{
-      height: '44px',
+      height: '48px',
       flexShrink: 0,
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 16px 0 0',
-      background: '#020617',
-      borderBottom: '1px solid rgba(148,163,184,0.08)',
+      padding: '0 20px 0 0',
+      background: '#ffffff',
+      borderBottom: '1px solid #e2e8f0',
       zIndex: 100,
     }}>
-      {/* Logo + title — left-aligned, lives above sidebar */}
+      {/* Logo + title */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '10px',
-        width: '260px',
-        padding: '0 16px',
-        borderRight: '1px solid rgba(148,163,184,0.08)',
-        height: '100%',
+        display: 'flex', alignItems: 'center', gap: '10px',
+        width: '240px', padding: '0 16px',
+        borderRight: '1px solid #e2e8f0', height: '100%',
       }}>
         <div style={{
-          width: '24px', height: '24px', borderRadius: '6px',
-          background: 'linear-gradient(135deg, #6366f1, #e85d04)',
+          width: '26px', height: '26px', borderRadius: '7px',
+          background: '#6366f1',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '12px', flexShrink: 0,
+          fontSize: '13px', flexShrink: 0,
         }}>
           📡
         </div>
         <div>
-          <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', lineHeight: 1 }}>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', lineHeight: 1.1 }}>
             Civic Pulse
           </div>
-          <div style={{ fontSize: '10px', color: '#475569', lineHeight: 1.4 }}>
+          <div style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.3 }}>
             Bengaluru · BBMP
           </div>
         </div>
       </div>
 
-      {/* Status right side */}
+      {/* Status */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         {isLoadingWards && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{
               width: '12px', height: '12px', borderRadius: '50%',
-              border: '1.5px solid #6366f1', borderTopColor: 'transparent',
+              border: '2px solid #6366f1', borderTopColor: 'transparent',
               animation: 'spin 0.8s linear infinite',
             }} />
-            <span style={{ fontSize: '11px', color: '#475569' }}>Updating…</span>
+            <span style={{ fontSize: '12px', color: '#475569' }}>Updating…</span>
           </div>
         )}
         {timeAgo && !isLoadingWards && (
-          <span style={{ fontSize: '11px', color: '#334155' }}>
+          <span style={{ fontSize: '12px', color: '#94a3b8' }}>
             Data as of Jun 2025 · refreshed {timeAgo}
           </span>
         )}

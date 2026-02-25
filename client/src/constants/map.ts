@@ -7,8 +7,8 @@ export const BENGALURU_BOUNDS: LatLngBoundsLiteral = [
   [13.1732, 77.8484], // NE
 ];
 
-// dark_nolabels removes street name clutter — ward boundaries become the primary visual
+// light_nolabels: clean white base, no competing street labels
 export const TILE_URL =
-  'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png';
+  'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png';
 export const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';

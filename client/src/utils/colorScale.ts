@@ -1,9 +1,9 @@
-// Restrained 3-stop scale: neutral slate → amber → red
-// Neutral base blends with map background; amber = caution; red = severe
+// 3-stop scale tuned for light map background
+// Low: pale slate (nearly invisible) → amber → red
 const STOPS: Array<{ score: number; r: number; g: number; b: number }> = [
-  { score: 0.00, r: 0x1e, g: 0x29, b: 0x3b }, // slate-800  — low stress
-  { score: 0.50, r: 0xf5, g: 0x9e, b: 0x0b }, // amber-500  — moderate
-  { score: 1.00, r: 0xef, g: 0x44, b: 0x44 }, // red-500    — severe
+  { score: 0.00, r: 0xe2, g: 0xe8, b: 0xf0 }, // slate-200 — blends with light map
+  { score: 0.50, r: 0xf5, g: 0x9e, b: 0x0b }, // amber-500
+  { score: 1.00, r: 0xef, g: 0x44, b: 0x44 }, // red-500
 ];
 
 function lerp(a: number, b: number, t: number): number {

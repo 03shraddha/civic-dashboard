@@ -8,10 +8,10 @@ export function HoverPanel() {
   if (!hoveredWardName) return null;
   const stats = wardStats.get(hoveredWardName);
   const score = stats?.frustrationScore ?? 0;
-  const scoreColor = scoreToColor(score);
+  const scoreColor = score >= 0.6 ? '#ef4444' : score >= 0.3 ? '#f59e0b' : '#16a34a';
 
   const trendIcon = stats?.trend === 'rising' ? '↑' : stats?.trend === 'falling' ? '↓' : '→';
-  const trendColor = stats?.trend === 'rising' ? '#ef4444' : stats?.trend === 'falling' ? '#22c55e' : '#475569';
+  const trendColor = stats?.trend === 'rising' ? '#ef4444' : stats?.trend === 'falling' ? '#16a34a' : '#94a3b8';
 
   const topCategories = stats
     ? Object.entries(stats.categoryBreakdown).sort(([, a], [, b]) => b - a).slice(0, 4)
@@ -20,86 +20,72 @@ export function HoverPanel() {
   return (
     <div style={{
       position: 'absolute',
-      top: '12px',
-      right: '12px',
+      top: '12px', right: '12px',
       zIndex: 1000,
-      width: '210px',
-      background: '#080d18',
-      border: '1px solid rgba(148,163,184,0.1)',
-      borderRadius: '10px',
+      width: '220px',
+      background: '#ffffff',
+      border: '1px solid #e2e8f0',
+      borderRadius: '12px',
       overflow: 'hidden',
-      boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.1), 0 1px 4px rgba(0,0,0,0.06)',
     }}>
 
-      {/* Score accent bar */}
+      {/* Score accent bar at top */}
       <div style={{
-        height: '2px',
-        background: `linear-gradient(to right, transparent, ${scoreColor})`,
-        width: `${Math.max(score * 100, 8)}%`,
+        height: '3px',
+        background: `linear-gradient(to right, #f1f5f9, ${scoreToColor(score)})`,
+        width: `${Math.max(score * 100, 6)}%`,
         transition: 'width 0.25s ease',
       }} />
 
-      <div style={{ padding: '12px' }}>
+      <div style={{ padding: '14px' }}>
 
         {/* Ward name + trend */}
-        <div style={{
-          display: 'flex', justifyContent: 'space-between',
-          alignItems: 'flex-start', marginBottom: '10px',
-        }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
           <div>
-            <div style={{ fontSize: '13px', fontWeight: 700, color: '#f1f5f9', lineHeight: 1.2 }}>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a', lineHeight: 1.2 }}>
               {hoveredWardName}
             </div>
             {stats?.wardNo ? (
-              <div style={{ fontSize: '10px', color: '#334155', marginTop: '2px', fontWeight: 400 }}>
+              <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
                 Ward #{stats.wardNo}
               </div>
             ) : null}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', paddingTop: '1px' }}>
-            <span style={{ fontSize: '13px', fontWeight: 800, color: scoreColor }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', paddingTop: '1px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: scoreColor }}>
               {(score * 100).toFixed(0)}
             </span>
-            <span style={{ fontSize: '13px', color: trendColor, fontWeight: 700, lineHeight: 1 }}>
-              {trendIcon}
-            </span>
+            <span style={{ fontSize: '14px', fontWeight: 700, color: trendColor }}>{trendIcon}</span>
           </div>
         </div>
 
         {stats ? (
           <>
             {/* 3-metric grid */}
-            <div style={{
-              display: 'grid', gridTemplateColumns: '1fr 1fr 1fr',
-              gap: '4px', marginBottom: '10px',
-            }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', marginBottom: '12px' }}>
               {[
-                { label: 'Total', value: stats.totalComplaints, color: '#94a3b8' },
+                { label: 'Total', value: stats.totalComplaints, color: '#0f172a' },
                 { label: 'Open', value: stats.unresolvedComplaints, color: '#f59e0b' },
-                { label: 'Resolved', value: `${stats.resolutionRatePercent}%`, color: '#22c55e' },
+                { label: 'Resolved', value: `${stats.resolutionRatePercent}%`, color: '#16a34a' },
               ].map(m => (
                 <div key={m.label} style={{
-                  padding: '6px 4px', textAlign: 'center',
-                  background: 'rgba(255,255,255,0.03)',
-                  borderRadius: '5px',
+                  padding: '8px 4px', textAlign: 'center',
+                  background: '#f8fafc', borderRadius: '6px',
+                  border: '1px solid #f1f5f9',
                 }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: m.color }}>
-                    {m.value}
-                  </div>
-                  <div style={{ fontSize: '9px', color: '#334155', marginTop: '1px', fontWeight: 400 }}>
-                    {m.label}
-                  </div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: m.color }}>{m.value}</div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '2px' }}>{m.label}</div>
                 </div>
               ))}
             </div>
 
-            {/* Category breakdown bars */}
+            {/* Category bars */}
             {topCategories.length > 0 && (
               <div>
                 <div style={{
-                  fontSize: '9px', color: '#334155', fontWeight: 600,
-                  textTransform: 'uppercase', letterSpacing: '0.08em',
-                  marginBottom: '6px',
+                  fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+                  textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: '8px',
                 }}>
                   Issues
                 </div>
@@ -108,25 +94,14 @@ export function HoverPanel() {
                   const pct = stats.totalComplaints > 0
                     ? Math.round((count / stats.totalComplaints) * 100) : 0;
                   return (
-                    <div key={cat} style={{ marginBottom: '5px' }}>
-                      <div style={{
-                        display: 'flex', justifyContent: 'space-between',
-                        marginBottom: '3px',
-                      }}>
-                        <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 400 }}>
-                          {meta?.label ?? cat}
-                        </span>
-                        <span style={{ fontSize: '10px', color: '#475569', fontWeight: 600 }}>
-                          {pct}%
-                        </span>
+                    <div key={cat} style={{ marginBottom: '6px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '3px' }}>
+                        <span style={{ fontSize: '11px', color: '#475569' }}>{meta?.label ?? cat}</span>
+                        <span style={{ fontSize: '11px', color: '#0f172a', fontWeight: 600 }}>{pct}%</span>
                       </div>
-                      <div style={{
-                        height: '2px', borderRadius: '1px',
-                        background: 'rgba(255,255,255,0.05)',
-                      }}>
+                      <div style={{ height: '3px', borderRadius: '2px', background: '#f1f5f9' }}>
                         <div style={{
-                          height: '100%', width: `${pct}%`,
-                          borderRadius: '1px',
+                          height: '100%', width: `${pct}%`, borderRadius: '2px',
                           background: meta?.color ?? '#6366f1',
                           transition: 'width 0.25s ease',
                         }} />
@@ -138,9 +113,7 @@ export function HoverPanel() {
             )}
           </>
         ) : (
-          <div style={{ fontSize: '11px', color: '#334155', fontWeight: 400 }}>
-            No complaint data
-          </div>
+          <div style={{ fontSize: '12px', color: '#94a3b8' }}>No complaint data for this ward.</div>
         )}
       </div>
     </div>

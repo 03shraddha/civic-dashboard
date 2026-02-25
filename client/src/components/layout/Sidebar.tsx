@@ -8,7 +8,6 @@ const TIME_LABELS: Record<TimeFilter, string> = {
   live: 'Live', '24h': '24h', '7d': '7d', '30d': '30d', seasonal: 'Season',
 };
 
-// Primary chips always visible; secondary chips collapse under "More"
 const PRIMARY_CATS = [
   'Solid Waste (Garbage) Related',
   'Electrical',
@@ -38,50 +37,49 @@ export function Sidebar() {
       width: '240px',
       flexShrink: 0,
       height: '100%',
-      background: '#080d18',
-      borderRight: '1px solid rgba(148,163,184,0.07)',
+      background: '#ffffff',
+      borderRight: '1px solid #e2e8f0',
       display: 'flex',
       flexDirection: 'column',
       overflowY: 'auto',
       overflowX: 'hidden',
     }}>
 
-      {/* ── BLOCK 1: Summary ───────────────────── */}
+      {/* ── BLOCK 1: Summary ─────────────────── */}
       <div style={{ padding: '20px 16px 16px' }}>
 
         {/* KPI */}
-        <div style={{ marginBottom: '12px' }}>
+        <div style={{ marginBottom: '14px' }}>
           <div style={{
-            fontSize: '28px', fontWeight: 800, color: '#f1f5f9',
+            fontSize: '28px', fontWeight: 700, color: '#0f172a',
             lineHeight: 1, letterSpacing: '-0.02em',
           }}>
             {isLoadingWards ? '—' : totalComplaints.toLocaleString()}
           </div>
-          <div style={{ fontSize: '11px', color: '#475569', marginTop: '3px', fontWeight: 400 }}>
+          <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
             complaints · {timeFilter} window
           </div>
         </div>
 
-        {/* Resolution rate bar */}
+        {/* Resolution rate */}
         {cityStats?.cityAvgResolutionRate != null && (
           <div style={{ marginBottom: '16px' }}>
             <div style={{
-              width: '100%', height: '3px',
-              background: 'rgba(255,255,255,0.06)',
-              borderRadius: '2px', overflow: 'hidden',
-              marginBottom: '5px',
+              width: '100%', height: '4px',
+              background: '#f1f5f9', borderRadius: '2px', overflow: 'hidden',
+              marginBottom: '6px',
             }}>
               <div style={{
                 height: '100%',
                 width: `${cityStats.cityAvgResolutionRate}%`,
-                background: cityStats.cityAvgResolutionRate > 70 ? '#22c55e'
+                background: cityStats.cityAvgResolutionRate > 70 ? '#16a34a'
                   : cityStats.cityAvgResolutionRate > 40 ? '#f59e0b' : '#ef4444',
                 borderRadius: '2px',
                 transition: 'width 0.4s ease',
               }} />
             </div>
-            <div style={{ fontSize: '11px', color: '#475569', fontWeight: 400 }}>
-              <span style={{ color: '#94a3b8', fontWeight: 600 }}>
+            <div style={{ fontSize: '12px', color: '#64748b' }}>
+              <span style={{ color: '#0f172a', fontWeight: 600 }}>
                 {cityStats.cityAvgResolutionRate}%
               </span>
               {' '}city resolution rate
@@ -89,53 +87,52 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Inline legend */}
+        {/* Stress legend */}
         <div>
           <div style={{
-            fontSize: '9px', fontWeight: 600, color: '#334155',
-            textTransform: 'uppercase', letterSpacing: '0.09em',
-            marginBottom: '5px',
+            fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+            marginBottom: '6px',
           }}>
             Stress level
           </div>
           <div style={{
-            height: '5px', borderRadius: '3px',
+            height: '6px', borderRadius: '3px',
             background: `linear-gradient(to right, ${legendGradient})`,
-            marginBottom: '4px',
+            marginBottom: '5px',
+            border: '1px solid #e2e8f0',
           }} />
-          <div style={{
-            display: 'flex', justifyContent: 'space-between',
-            fontSize: '9px', color: '#334155',
-          }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#94a3b8' }}>
             <span>Low</span>
             <span>High</span>
           </div>
         </div>
       </div>
 
-      <BlockDivider />
+      <Divider />
 
-      {/* ── BLOCK 2: Filters ───────────────────── */}
-      <div style={{ padding: '14px 16px' }}>
+      {/* ── BLOCK 2: Filters ─────────────────── */}
+      <div style={{ padding: '16px' }}>
 
         {/* Time window */}
-        <SectionLabel>Time</SectionLabel>
+        <Label>Time Window</Label>
         <div style={{
           display: 'flex', gap: '3px',
-          background: 'rgba(255,255,255,0.04)',
+          background: '#f8fafc',
           borderRadius: '8px', padding: '3px',
-          marginBottom: '16px',
+          border: '1px solid #e2e8f0',
+          marginBottom: '20px',
         }}>
           {TIME_FILTERS.map(tf => (
             <button
               key={tf}
               onClick={() => setTimeFilter(tf)}
               style={{
-                flex: 1, padding: '5px 0',
+                flex: 1, padding: '6px 0',
                 borderRadius: '5px', border: 'none',
-                cursor: 'pointer', fontSize: '11px', fontWeight: 500,
+                cursor: 'pointer', fontSize: '12px', fontWeight: 500,
                 background: tf === timeFilter ? '#6366f1' : 'transparent',
-                color: tf === timeFilter ? '#fff' : '#475569',
+                color: tf === timeFilter ? '#ffffff' : '#64748b',
                 transition: 'background 0.12s ease, color 0.12s ease',
               }}
             >
@@ -145,17 +142,9 @@ export function Sidebar() {
         </div>
 
         {/* Category chips */}
-        <SectionLabel>Category</SectionLabel>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-
-          {/* All chip */}
-          <Chip
-            label="All"
-            active={activeCategory === null}
-            onClick={() => setActiveCategory(null)}
-          />
-
-          {/* Primary category chips */}
+        <Label>Category</Label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+          <Chip label="All" active={activeCategory === null} onClick={() => setActiveCategory(null)} />
           {PRIMARY_CATS.map(key => {
             const meta = CATEGORIES[key];
             if (!meta) return null;
@@ -169,8 +158,6 @@ export function Sidebar() {
               />
             );
           })}
-
-          {/* Secondary chips — expand on demand */}
           {showMore && SECONDARY_CATS.map(key => {
             const meta = CATEGORIES[key];
             if (!meta) return null;
@@ -184,19 +171,13 @@ export function Sidebar() {
               />
             );
           })}
-
-          {/* More / Less toggle */}
           <button
             onClick={() => setShowMore(v => !v)}
             style={{
-              padding: '4px 8px',
-              borderRadius: '20px',
-              border: '1px solid rgba(148,163,184,0.12)',
-              background: 'transparent',
-              color: '#475569',
-              fontSize: '10px', fontWeight: 500,
-              cursor: 'pointer',
-              transition: 'color 0.1s ease',
+              padding: '5px 10px', borderRadius: '20px',
+              border: '1px solid #e2e8f0', background: 'transparent',
+              color: '#64748b', fontSize: '11px', fontWeight: 500,
+              cursor: 'pointer', transition: 'color 0.1s, border-color 0.1s',
             }}
           >
             {showMore ? '− Less' : `+ ${SECONDARY_CATS.length} more`}
@@ -204,29 +185,26 @@ export function Sidebar() {
         </div>
       </div>
 
-      <BlockDivider />
+      <Divider />
 
-      {/* ── BLOCK 3: Ward Intelligence ─────────── */}
-      <div style={{ padding: '14px 16px', flex: 1 }}>
-        <SectionLabel>Ward Insights</SectionLabel>
+      {/* ── BLOCK 3: Ward Insights ───────────── */}
+      <div style={{ padding: '16px', flex: 1 }}>
+        <Label>Ward Insights</Label>
 
         {cityStats ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {cityStats.mostFrustrated && (
               <InsightRow
-                icon="🔥"
-                label="Most stressed"
+                icon="🔥" label="Most stressed"
                 ward={cityStats.mostFrustrated.wardName}
-                metric={`${((cityStats.mostFrustrated.frustrationScore ?? 0) * 100).toFixed(0)}`}
+                metric={`${((cityStats.mostFrustrated.frustrationScore ?? 0) * 100).toFixed(0)}/100`}
                 metricColor={scoreToColor(cityStats.mostFrustrated.frustrationScore ?? 0)}
-                metricSuffix="/100"
                 sub={cityStats.mostFrustrated.topIssue}
               />
             )}
             {cityStats.suddenSpike && (
               <InsightRow
-                icon="↑"
-                label="Sudden spike"
+                icon="↑" label="Sudden spike"
                 ward={cityStats.suddenSpike.wardName}
                 metric={`+${cityStats.suddenSpike.changePercent}%`}
                 metricColor="#f59e0b"
@@ -235,21 +213,19 @@ export function Sidebar() {
             )}
             {cityStats.fastestResolution && (
               <InsightRow
-                icon="✓"
-                label="Best resolved"
+                icon="✓" label="Best resolved"
                 ward={cityStats.fastestResolution.wardName}
                 metric={`${cityStats.fastestResolution.resolutionRatePercent?.toFixed(0)}%`}
-                metricColor="#22c55e"
+                metricColor="#16a34a"
                 sub="resolved"
               />
             )}
             {cityStats.mostImproved && (
               <InsightRow
-                icon="↓"
-                label="Most improved"
+                icon="↓" label="Most improved"
                 ward={cityStats.mostImproved.wardName}
                 metric={`${Math.abs(cityStats.mostImproved.changePercent ?? 0)}% less`}
-                metricColor="#22c55e"
+                metricColor="#16a34a"
                 sub={`${cityStats.mostImproved.currentTotal} complaints`}
               />
             )}
@@ -259,39 +235,31 @@ export function Sidebar() {
         )}
       </div>
 
-      {/* ── Pulse toggle (bottom) ─────────────── */}
-      <div style={{
-        padding: '12px 16px',
-        borderTop: '1px solid rgba(148,163,184,0.07)',
-      }}>
+      {/* ── Pulse toggle ─────────────────────── */}
+      <div style={{ padding: '12px 16px', borderTop: '1px solid #e2e8f0' }}>
         <button
           onClick={() => setShowPulses(!showPulses)}
           style={{
-            display: 'flex', alignItems: 'center', gap: '8px',
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: 0, width: '100%',
+            display: 'flex', alignItems: 'center', gap: '10px',
+            background: 'none', border: 'none', cursor: 'pointer', padding: 0,
           }}
         >
-          {/* Toggle pill */}
           <div style={{
-            width: '28px', height: '16px', borderRadius: '8px',
-            background: showPulses ? 'rgba(99,102,241,0.5)' : 'rgba(255,255,255,0.08)',
-            border: `1px solid ${showPulses ? 'rgba(99,102,241,0.6)' : 'rgba(148,163,184,0.15)'}`,
+            width: '32px', height: '18px', borderRadius: '9px',
+            background: showPulses ? '#6366f1' : '#e2e8f0',
             position: 'relative', flexShrink: 0,
-            transition: 'background 0.15s ease, border-color 0.15s ease',
+            transition: 'background 0.15s ease',
           }}>
             <div style={{
-              position: 'absolute',
-              top: '2px',
-              left: showPulses ? '13px' : '2px',
-              width: '10px', height: '10px', borderRadius: '50%',
-              background: showPulses ? '#818cf8' : '#475569',
-              transition: 'left 0.15s ease, background 0.15s ease',
+              position: 'absolute', top: '3px',
+              left: showPulses ? '15px' : '3px',
+              width: '12px', height: '12px', borderRadius: '50%',
+              background: '#ffffff',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              transition: 'left 0.15s ease',
             }} />
           </div>
-          <span style={{ fontSize: '11px', color: '#475569', fontWeight: 400 }}>
-            Show activity pulses
-          </span>
+          <span style={{ fontSize: '12px', color: '#64748b' }}>Show activity pulses</span>
         </button>
       </div>
 
@@ -299,30 +267,24 @@ export function Sidebar() {
   );
 }
 
-// ── Sub-components ─────────────────────────────────────
+// ── Sub-components ──────────────────────────────────────
 
-function BlockDivider() {
-  return <div style={{ borderTop: '1px solid rgba(148,163,184,0.07)' }} />;
+function Divider() {
+  return <div style={{ borderTop: '1px solid #f1f5f9' }} />;
 }
 
-function SectionLabel({ children }: { children: string }) {
+function Label({ children }: { children: string }) {
   return (
     <div style={{
-      fontSize: '9px', fontWeight: 600, color: '#334155',
-      letterSpacing: '0.1em', textTransform: 'uppercase',
-      marginBottom: '8px',
+      fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+      textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px',
     }}>
       {children}
     </div>
   );
 }
 
-interface ChipProps {
-  label: string;
-  icon?: string;
-  active: boolean;
-  onClick: () => void;
-}
+interface ChipProps { label: string; icon?: string; active: boolean; onClick: () => void; }
 
 function Chip({ label, icon, active, onClick }: ChipProps) {
   return (
@@ -330,62 +292,47 @@ function Chip({ label, icon, active, onClick }: ChipProps) {
       onClick={onClick}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: '4px',
-        padding: '4px 9px',
-        borderRadius: '20px', border: 'none', cursor: 'pointer',
-        fontSize: '11px', fontWeight: active ? 600 : 400,
-        background: active ? 'rgba(99,102,241,0.18)' : 'rgba(255,255,255,0.04)',
-        color: active ? '#a5b4fc' : '#475569',
-        outline: active ? '1px solid rgba(99,102,241,0.35)' : '1px solid rgba(148,163,184,0.1)',
-        outlineOffset: '-1px',
-        transition: 'background 0.12s ease, color 0.12s ease, outline-color 0.12s ease',
+        padding: '5px 10px', borderRadius: '20px', border: 'none',
+        cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400,
+        background: active ? '#eef2ff' : '#f8fafc',
+        color: active ? '#6366f1' : '#64748b',
+        outline: active ? '1.5px solid #c7d2fe' : '1.5px solid #e2e8f0',
+        outlineOffset: '-1.5px',
+        transition: 'background 0.12s, color 0.12s, outline-color 0.12s',
       }}
     >
-      {icon && <span style={{ fontSize: '10px', lineHeight: 1 }}>{icon}</span>}
+      {icon && <span style={{ fontSize: '11px' }}>{icon}</span>}
       {label}
     </button>
   );
 }
 
 interface InsightRowProps {
-  icon: string;
-  label: string;
-  ward: string;
-  metric: string;
-  metricColor: string;
-  metricSuffix?: string;
-  sub?: string;
+  icon: string; label: string; ward: string;
+  metric: string; metricColor: string; sub?: string;
 }
 
-function InsightRow({ icon, label, ward, metric, metricColor, metricSuffix, sub }: InsightRowProps) {
+function InsightRow({ icon, label, ward, metric, metricColor, sub }: InsightRowProps) {
   return (
     <div style={{
-      padding: '8px',
-      borderRadius: '6px',
-      background: 'rgba(255,255,255,0.025)',
+      padding: '10px 12px', borderRadius: '8px',
+      background: '#f8fafc', border: '1px solid #f1f5f9',
     }}>
-      <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'baseline', marginBottom: '2px',
-      }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '3px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-          <span style={{ fontSize: '10px', opacity: 0.5 }}>{icon}</span>
-          <span style={{ fontSize: '9px', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+          <span style={{ fontSize: '11px' }}>{icon}</span>
+          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             {label}
           </span>
         </div>
-        <span style={{ fontSize: '12px', fontWeight: 700, color: metricColor }}>
-          {metric}
-          {metricSuffix && (
-            <span style={{ fontSize: '9px', color: '#334155', marginLeft: '1px' }}>{metricSuffix}</span>
-          )}
-        </span>
+        <span style={{ fontSize: '13px', fontWeight: 700, color: metricColor }}>{metric}</span>
       </div>
-      <div style={{ fontSize: '12px', fontWeight: 600, color: '#cbd5e1', paddingLeft: '15px' }}>
+      <div style={{ fontSize: '13px', fontWeight: 600, color: '#0f172a', paddingLeft: '16px' }}>
         {ward}
       </div>
       {sub && (
         <div style={{
-          fontSize: '10px', color: '#334155', paddingLeft: '15px', marginTop: '1px',
+          fontSize: '11px', color: '#94a3b8', paddingLeft: '16px', marginTop: '1px',
           whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
         }}>
           {sub}
@@ -397,12 +344,9 @@ function InsightRow({ icon, label, ward, metric, metricColor, metricSuffix, sub 
 
 function SkeletonRows() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
       {[1, 2, 3, 4].map(i => (
-        <div key={i} style={{
-          height: '54px', borderRadius: '6px',
-          background: 'rgba(255,255,255,0.025)',
-        }} />
+        <div key={i} style={{ height: '62px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #f1f5f9' }} />
       ))}
     </div>
   );
