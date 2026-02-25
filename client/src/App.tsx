@@ -5,7 +5,7 @@ import { PulseLayer } from './components/map/PulseLayer';
 import { HoverPanel } from './components/map/HoverPanel';
 import { MapLegend } from './components/map/MapLegend';
 import { TopBar } from './components/layout/TopBar';
-import { ComparisonCards } from './components/cards/ComparisonCards';
+import { Sidebar } from './components/layout/Sidebar';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { WarmingUp } from './components/shared/WarmingUp';
 import { useWardBoundaries } from './hooks/useWardBoundaries';
@@ -18,19 +18,37 @@ function MapApp() {
   useCityStats();
 
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100vh',
+      width: '100vw',
+      overflow: 'hidden',
+      background: '#020617',
+    }}>
+      {/* Top bar — branding + status only */}
       <TopBar />
-      <div style={{ position: 'absolute', inset: 0, paddingTop: '60px' }}>
-        <ErrorBoundary>
-          <MapContainer>
-            <ChoroplethLayer />
-            <PulseLayer />
-          </MapContainer>
-        </ErrorBoundary>
+
+      {/* Main content: sidebar + map */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
+        {/* Left sidebar — controls + intelligence */}
+        <Sidebar />
+
+        {/* Map viewport */}
+        <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+          <ErrorBoundary>
+            <MapContainer>
+              <ChoroplethLayer />
+              <PulseLayer />
+            </MapContainer>
+          </ErrorBoundary>
+
+          {/* Map overlays */}
+          <HoverPanel />
+          <MapLegend />
+        </div>
       </div>
-      <HoverPanel />
-      <MapLegend />
-      <ComparisonCards />
     </div>
   );
 }
@@ -38,12 +56,11 @@ function MapApp() {
 export default function App() {
   const [ready, setReady] = useState(false);
 
-  // Check if server already has cached data (not a cold start)
   useEffect(() => {
     fetch('/health')
       .then(r => r.json())
       .then(d => { if (d.cachedWindows?.length > 0) setReady(true); })
-      .catch(() => setReady(true)); // if health check fails, show map anyway
+      .catch(() => setReady(true));
   }, []);
 
   const handleReady = useCallback(() => setReady(true), []);
