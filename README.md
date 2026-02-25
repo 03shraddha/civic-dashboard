@@ -1,3 +1,5 @@
+
+
 # Civic Pulse — Bengaluru
 
 Live BBMP civic complaint map for Bengaluru. Shows a choropleth "Frustration Score" map per ward,

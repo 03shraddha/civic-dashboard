@@ -10,7 +10,7 @@ import { fetchAllGrievanceRecords, filterToWindow, ParsedGrievance } from './gri
 import { fetchPotholeCounts } from './potholeService';
 import { WardNormalizer } from '../utils/wardNormalizer';
 import { WardRawMetrics, computeFrustrationScores, WardStats } from '../utils/frustrationScore';
-import { getWindowStart } from '../utils/dateParser';
+import { getWindowStart, findDatasetMaxDate } from '../utils/dateParser';
 import { setWardStats } from '../cache/store';
 
 const DATAMEET_GEOJSON_URL =
@@ -189,9 +189,8 @@ export async function aggregateAll(): Promise<void> {
   console.log('[Aggregator] Starting full aggregation (all windows)');
   const startMs = Date.now();
 
-  // Determine if any window needs 2024 data
-  const oldest = getWindowStart('seasonal');
-  const need2024 = oldest.getFullYear() < new Date().getFullYear();
+  // Always include 2024 dataset — anchor detection happens after fetch
+  const need2024 = true;
 
   // ── Fetch everything in parallel ──────────────────────────────────────────
   const [allRecords, potholeCounts, wardGeos] = await Promise.all([
@@ -228,15 +227,25 @@ export async function aggregateAll(): Promise<void> {
     if (canonical) potholeByCanonical.set(canonical, (potholeByCanonical.get(canonical) || 0) + p.complaints);
   }
 
-  // ── Compute each time window from the same in-memory records ─────────────
-  const now = new Date();
+  // ── Anchor time windows to dataset's max date, not today ─────────────────
+  // The CKAN datasets are snapshots (e.g. Jan–Jun 2025). If today is months
+  // later, filtering relative to "now" yields 0 records. Instead we anchor
+  // all windows to the most recent complaint date in the data.
+  const datasetMaxDate = findDatasetMaxDate(allRecords.map(r => r.date));
+  const realNow = new Date();
+  // Use dataset max date if it's more than 7 days in the past
+  const anchor = (realNow.getTime() - datasetMaxDate.getTime()) > 7 * 24 * 60 * 60 * 1000
+    ? datasetMaxDate
+    : realNow;
+
+  console.log(`[Aggregator] Data anchor: ${anchor.toISOString()} (dataset max: ${datasetMaxDate.toISOString()})`);
 
   for (const window of TIME_WINDOWS) {
-    const windowStart = getWindowStart(window);
-    const windowDurationMs = now.getTime() - windowStart.getTime();
+    const windowStart = getWindowStart(window, anchor);
+    const windowDurationMs = anchor.getTime() - windowStart.getTime();
     const prevStart = new Date(windowStart.getTime() - windowDurationMs);
 
-    const current = filterToWindow(allRecords, windowStart, now);
+    const current = filterToWindow(allRecords, windowStart, anchor);
     const previous = filterToWindow(allRecords, prevStart, windowStart);
 
     console.log(`[Aggregator] Window=${window}: current=${current.length}, previous=${previous.length}`);

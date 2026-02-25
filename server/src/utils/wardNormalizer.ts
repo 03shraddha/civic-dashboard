@@ -80,7 +80,7 @@ export class WardNormalizer {
         best = c;
       }
     }
-    if (bestScore >= 0.85 && best) return best;
+    if (bestScore >= 0.80 && best) return best;
 
     // Unmapped
     if (!_unmappedLog.has(rawName)) {
