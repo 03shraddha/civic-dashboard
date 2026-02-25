@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../../store';
 
-// 28 BBMP constituencies (approximate groupings)
 const CONSTITUENCIES = [
   'Dasarahalli', 'Mahalakshmi Layout', 'Malleshwaram', 'Hebbal',
   'Byatarayanapura', 'Yeshwanthpur', 'RR Nagar', 'Vijayanaagar',
@@ -12,58 +11,85 @@ const CONSTITUENCIES = [
   'Bangalore East', 'Bangalore South', 'Anekal', 'KR Puram',
 ];
 
+const PREVIEW_COUNT = 3;
+
 export function NeighborhoodSelector() {
   const { activeConstituency, setActiveConstituency } = useStore();
-  const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const visible = expanded ? CONSTITUENCIES : CONSTITUENCIES.slice(0, PREVIEW_COUNT);
+  const remaining = CONSTITUENCIES.length - PREVIEW_COUNT;
 
   return (
-    <div style={{ position: 'relative' }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: '6px',
-          padding: '6px 12px',
-          background: activeConstituency ? 'rgba(99,102,241,0.3)' : 'rgba(255,255,255,0.08)',
-          border: '1px solid rgba(148,163,184,0.2)',
-          borderRadius: '8px', color: '#e2e8f0', fontSize: '13px', cursor: 'pointer',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        📍 {activeConstituency || 'Constituency'}
+    <div>
+      {/* Label row */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: '8px',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{
+            fontSize: '11px', fontWeight: 600, color: '#94a3b8',
+            textTransform: 'uppercase', letterSpacing: '0.08em',
+          }}>
+            Neighbourhood
+          </span>
+          {activeConstituency && (
+            <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: 600 }}>
+              · {activeConstituency}
+            </span>
+          )}
+        </div>
         {activeConstituency && (
-          <span
-            onClick={e => { e.stopPropagation(); setActiveConstituency(null); }}
-            style={{ color: '#94a3b8', cursor: 'pointer', marginLeft: '2px' }}
-          >✕</span>
+          <button
+            onClick={() => setActiveConstituency(null)}
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer',
+              fontSize: '11px', color: '#94a3b8', padding: 0,
+            }}
+          >
+            Clear ×
+          </button>
         )}
-        {!activeConstituency && <span style={{ color: '#64748b', fontSize: '10px' }}>▼</span>}
-      </button>
+      </div>
 
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
-          background: 'rgba(15,23,42,0.98)', backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(148,163,184,0.2)', borderRadius: '10px',
-          overflow: 'auto', maxHeight: '280px', minWidth: '200px',
-          zIndex: 2000, boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
-        }}>
-          {CONSTITUENCIES.map(c => (
+      {/* Chips — always visible */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+        {visible.map(c => {
+          const active = activeConstituency === c;
+          return (
             <button
               key={c}
-              onClick={() => { setActiveConstituency(c); setOpen(false); }}
+              onClick={() => setActiveConstituency(active ? null : c)}
               style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '9px 14px',
-                background: activeConstituency === c ? 'rgba(99,102,241,0.2)' : 'transparent',
-                border: 'none', borderTop: '1px solid rgba(148,163,184,0.06)',
-                color: '#e2e8f0', fontSize: '12px', cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center',
+                padding: '5px 10px', borderRadius: '20px', border: 'none',
+                cursor: 'pointer', fontSize: '12px', fontWeight: active ? 600 : 400,
+                background: active ? '#eef2ff' : '#f8fafc',
+                color: active ? '#6366f1' : '#64748b',
+                outline: active ? '1.5px solid #c7d2fe' : '1.5px solid #e2e8f0',
+                outlineOffset: '-1.5px',
+                transition: 'background 0.12s, color 0.12s, outline-color 0.12s',
               }}
             >
               {c}
             </button>
-          ))}
-        </div>
-      )}
+          );
+        })}
+
+        {/* View more / less toggle */}
+        <button
+          onClick={() => setExpanded(v => !v)}
+          style={{
+            padding: '5px 10px', borderRadius: '20px',
+            border: '1px solid #e2e8f0', background: 'transparent',
+            color: '#6366f1', fontSize: '11px', fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          {expanded ? '− Less' : `+ ${remaining} more`}
+        </button>
+      </div>
     </div>
   );
 }

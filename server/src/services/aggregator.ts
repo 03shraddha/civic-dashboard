@@ -5,6 +5,7 @@
  * This avoids the previous 3+ minute cold-start caused by fetching the same
  * 300k+ records multiple times.
  */
+import path from 'path';
 import axios from 'axios';
 import { fetchAllGrievanceRecords, filterToWindow, ParsedGrievance } from './grievanceService';
 import { fetchPotholeCounts } from './potholeService';
@@ -55,7 +56,7 @@ function featureAreaKm2(geometry: GeoFeature['geometry']): number {
     return polygonAreaKm2((geometry.coordinates as number[][][])[0]);
   }
   const coords = geometry.coordinates as number[][][][];
-  return Math.max(...coords.map(poly => polygonAreaKm2(poly[0])));
+  return coords.reduce((sum, poly) => sum + polygonAreaKm2(poly[0]), 0);
 }
 
 interface WardGeo { name: string; wardNo: number; areaKm2: number }
@@ -117,7 +118,7 @@ function groupByWard(
     if (g.status === 'Closed') acc.closed++;
     if (STREETLIGHT_CATEGORIES.has(g.category)) acc.streetlight++;
     acc.categories.set(g.category, (acc.categories.get(g.category) || 0) + 1);
-    if (acc.recent.length < 5) {
+    if (acc.recent.length < 20) {
       acc.recent.push({
         id: g.id, category: g.category, subCategory: g.subCategory,
         date: g.date.toISOString().slice(0, 10), status: g.status,
@@ -214,7 +215,7 @@ export async function aggregateAll(): Promise<void> {
   let manualMap: Record<string, string> = {};
   try {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    manualMap = require('../../client/public/ward_name_map.json') as Record<string, string>;
+    manualMap = require(path.join(__dirname, '../../../client/public/ward_name_map.json')) as Record<string, string>;
   } catch { /* fine if missing */ }
 
   const normalizer = new WardNormalizer(canonicalNames, manualMap);
@@ -245,7 +246,9 @@ export async function aggregateAll(): Promise<void> {
     const windowDurationMs = anchor.getTime() - windowStart.getTime();
     const prevStart = new Date(windowStart.getTime() - windowDurationMs);
 
-    const current = filterToWindow(allRecords, windowStart, anchor);
+    // Sort desc so the first 20 records added per ward in groupByWard are most recent
+    const current = filterToWindow(allRecords, windowStart, anchor)
+      .sort((a, b) => b.date.getTime() - a.date.getTime());
     const previous = filterToWindow(allRecords, prevStart, windowStart);
 
     console.log(`[Aggregator] Window=${window}: current=${current.length}, previous=${previous.length}`);

@@ -3,9 +3,9 @@ import { scoreToColor } from '../../utils/colorScale';
 import { CATEGORIES } from '../../constants/categories';
 
 export function HoverPanel() {
-  const { hoveredWardName, wardStats } = useStore();
+  const { hoveredWardName, wardStats, activeWardName } = useStore();
 
-  if (!hoveredWardName) return null;
+  if (!hoveredWardName || activeWardName) return null;
   const stats = wardStats.get(hoveredWardName);
   const score = stats?.frustrationScore ?? 0;
   const scoreColor = score >= 0.6 ? '#ef4444' : score >= 0.3 ? '#f59e0b' : '#16a34a';

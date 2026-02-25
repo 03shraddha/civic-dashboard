@@ -3,18 +3,19 @@ import { useStore } from '../../store';
 import { TIME_FILTERS, TimeFilter } from '../../constants/scoring';
 import { CATEGORIES } from '../../constants/categories';
 import { scoreToColor, LEGEND_STOPS } from '../../utils/colorScale';
+import { NeighborhoodSelector } from '../controls/NeighborhoodSelector';
 
 const TIME_LABELS: Record<TimeFilter, string> = {
   live: 'Live', '24h': '24h', '7d': '7d', '30d': '30d', seasonal: 'Season',
 };
 
-const PRIMARY_CATS = [
+const VISIBLE_CATS = [
   'Solid Waste (Garbage) Related',
   'Electrical',
+];
+const MORE_CATS = [
   'Road Maintenance(Engg)',
   'Revenue Department',
-];
-const SECONDARY_CATS = [
   'Forest',
   'Lakes',
   'E khata / Khata services',
@@ -145,7 +146,7 @@ export function Sidebar() {
         <Label>Category</Label>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
           <Chip label="All" active={activeCategory === null} onClick={() => setActiveCategory(null)} />
-          {PRIMARY_CATS.map(key => {
+          {VISIBLE_CATS.map(key => {
             const meta = CATEGORIES[key];
             if (!meta) return null;
             return (
@@ -158,7 +159,7 @@ export function Sidebar() {
               />
             );
           })}
-          {showMore && SECONDARY_CATS.map(key => {
+          {showMore && MORE_CATS.map(key => {
             const meta = CATEGORIES[key];
             if (!meta) return null;
             return (
@@ -176,18 +177,25 @@ export function Sidebar() {
             style={{
               padding: '5px 10px', borderRadius: '20px',
               border: '1px solid #e2e8f0', background: 'transparent',
-              color: '#64748b', fontSize: '11px', fontWeight: 500,
+              color: '#6366f1', fontSize: '11px', fontWeight: 500,
               cursor: 'pointer', transition: 'color 0.1s, border-color 0.1s',
             }}
           >
-            {showMore ? '− Less' : `+ ${SECONDARY_CATS.length} more`}
+            {showMore ? '− Less' : `+ ${MORE_CATS.length} more`}
           </button>
         </div>
       </div>
 
       <Divider />
 
-      {/* ── BLOCK 3: Ward Insights ───────────── */}
+      {/* ── BLOCK 3: Neighbourhood ───────────── */}
+      <div style={{ padding: '16px' }}>
+        <NeighborhoodSelector />
+      </div>
+
+      <Divider />
+
+      {/* ── BLOCK 4: Ward Insights ───────────── */}
       <div style={{ padding: '16px', flex: 1 }}>
         <Label>Ward Insights</Label>
 

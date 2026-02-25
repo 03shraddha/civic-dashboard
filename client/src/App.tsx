@@ -3,6 +3,9 @@ import { MapContainer } from './components/map/MapContainer';
 import { ChoroplethLayer } from './components/map/ChoroplethLayer';
 import { PulseLayer } from './components/map/PulseLayer';
 import { HoverPanel } from './components/map/HoverPanel';
+import { WardDrawer } from './components/map/WardDrawer';
+import { CategoryExplainer } from './components/map/CategoryExplainer';
+import { ConstituencyZoomer } from './components/map/ConstituencyZoomer';
 import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
@@ -35,10 +38,13 @@ function MapApp() {
             <MapContainer>
               <ChoroplethLayer />
               <PulseLayer />
+              <ConstituencyZoomer />
             </MapContainer>
           </ErrorBoundary>
 
+          <CategoryExplainer />
           <HoverPanel />
+          <WardDrawer />
         </div>
       </div>
     </div>

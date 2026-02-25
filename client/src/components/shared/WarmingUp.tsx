@@ -61,7 +61,7 @@ export function WarmingUp({ onReady }: Props) {
       </div>
 
       <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#0f172a', marginBottom: '8px' }}>
-        Civic Pulse — Bengaluru
+        Grievance Map
       </h1>
       <p style={{ color: '#64748b', fontSize: '14px', marginBottom: '32px', textAlign: 'center', maxWidth: '340px', lineHeight: 1.6 }}>
         Aggregating 300,000+ BBMP complaint records{dots}

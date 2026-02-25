@@ -1,63 +1,70 @@
-# Civic Pulse — Bengaluru
+# Grievance Map — Bengaluru
 
-A live civic intelligence map that turns 300,000+ raw BBMP complaint records into a real-time ward-by-ward heat map of urban stress across Bengaluru. Built on public government open data.
+Analyse BBMP complaints across Bengaluru. A civic intelligence map that turns 300,000+ raw BBMP complaint records into a ward-by-ward heat map of urban stress, built entirely on public government open data.
 
 ---
 
 ## What It Does
 
-Civic Pulse aggregates all BBMP grievances filed by residents — potholes, garbage, broken streetlights, revenue complaints, lake encroachments, and more — and computes a **Frustration Score** for each of Bengaluru's 225 wards. The map updates every 15 minutes and lets you slice the data by time window and complaint category.
+Grievance Map aggregates all BBMP grievances filed by residents — potholes, garbage, broken streetlights, revenue complaints, lake encroachments, and more — and computes a **Frustration Score** for each of Bengaluru's 225 wards. The map refreshes every 15 minutes and lets you slice the data by time window, complaint category, and neighbourhood (constituency).
 
 ### The Map
 
-Each ward polygon is colour-coded from deep blue (low stress) through amber to dark crimson (high stress). Pulsing circles at ward centroids give an at-a-glance feel for which areas are active right now. Hover over any ward to see a detailed breakdown.
+Each ward polygon is colour-coded from pale slate (low stress) through amber to red (high stress). Pulsing circles at ward centroids give an at-a-glance feel for which areas are under the most strain. Hover any ward for a quick summary; click it for the full detail drawer.
 
 | Colour | What it means |
 |--------|---------------|
-| Deep blue | Few complaints, high resolution rate |
-| Teal | Below-average stress |
-| Amber | Moderate — worth watching |
-| Orange | High complaint volume or low resolution |
-| Crimson | Severe — high density, many unresolved |
+| Pale slate | Few complaints, high resolution rate |
+| Amber | Moderate stress — worth watching |
+| Red | High complaint density or many unresolved |
 
 ### The Sidebar
 
-The left panel gives you live city-wide context at all times:
+The left panel gives you city-wide context and all filters:
 
-- **Complaint counter** — total grievances filed in the selected time window across all wards
-- **City resolution rate** — what percentage of complaints have been closed city-wide; the bar turns green above 70%, amber between 40–70%, red below 40%
-- **Time window** — switch between Live, 24h, 7d, 30d, and Seasonal views; the map recolours instantly
-- **Category filter** — drill into a single issue type (Garbage, Electrical/Streetlights, Roads, Revenue, Forest/Trees, Lakes, Khata Services); selecting one shows only complaints of that category and recalculates scores
-- **Ward Intelligence** — four auto-calculated spotlights:
-  - **Most Stressed** — the ward with the highest frustration score right now, with its dominant issue type
-  - **Sudden Spike** — the ward that saw the largest percentage increase in complaints compared to the previous equivalent period
-  - **Fastest Resolved** — the ward with the highest complaint resolution rate
-  - **Most Improved** — the ward whose complaint volume fell the most compared to the previous period
+- **Complaint counter** — total grievances in the selected time window across all wards
+- **City resolution rate** — percentage of complaints closed city-wide; bar turns green above 70%, amber between 40–70%, red below 40%
+- **Time window** — switch between Live, 24h, 7d, 30d, and Seasonal; the map recolours instantly
+- **Category filter** — 2 most-common categories shown by default; expand to filter by Garbage, Electrical/Streetlights, Roads, Revenue, Forest/Trees, Lakes, or Khata Services; selecting one recalculates all scores for that category only
+- **Neighbourhood filter** — 3 constituency chips shown by default; expand to browse all 28 Bengaluru constituencies; selecting one dims unrelated wards and flies the map to that area
+- **Ward Intelligence** — four auto-calculated spotlights: Most Stressed, Sudden Spike, Fastest Resolved, Most Improved
 
 ### The Hover Panel
 
-Mouse over any ward on the map to open a detail panel (top-right of the map). It shows:
+Mouse over any ward to open a compact detail panel (top-right of the map):
 
 - Ward name and number
-- Frustration score out of 100
-- Total complaints, open/unresolved count, and resolution rate %
-- Trend arrow — rising ↑ (more complaints than last period), falling ↓ (fewer), or stable →
-- A mini bar chart of the top 4 issue categories for that ward
+- Frustration score out of 100 with trend arrow (↑ rising / ↓ falling / → stable)
+- Total complaints, open count, and resolution rate %
+- Mini bar chart of top 4 issue categories
+
+### The Ward Drawer
+
+Click any ward to open a full detail panel that slides in from the right edge of the map:
+
+- Score badge (Low / Medium / High) with numeric score
+- 3-metric summary: Total · Open · Resolved %
+- Full category breakdown with percentage bars
+- Up to 20 most-recent complaints, each showing the specific sub-category description (e.g. "Garbage not cleared from road"), a coloured category badge, status pill, and date
+
+### Category Explainer
+
+Clicking a category filter triggers a contextual overlay at the top of the map. It explains what that category covers, what types of issues are included, example complaints, and which BBMP department is responsible. It auto-dismisses after 8 seconds or can be closed manually.
 
 ### Understanding the Frustration Score
 
-The score is not just a raw complaint count. A ward with 500 complaints and a 95% resolution rate is healthier than one with 80 complaints and 0% resolved. The score blends four signals:
+The score is not a raw complaint count. A ward with 500 complaints and a 95% resolution rate is healthier than one with 80 complaints and 0% resolved. The score blends four signals:
 
 | Signal | Weight | Why |
 |--------|--------|-----|
-| Complaint density (per km²) | 40% | Normalises for ward size; a large ward naturally gets more complaints |
-| Unresolved ratio | 30% | Persistent unresolved issues = ongoing resident frustration |
-| Pothole density (Fix My Street) | 20% | Road condition is a distinct, high-impact data source |
+| Complaint density (per km²) | 40% | Normalises for ward size |
+| Unresolved ratio | 30% | Persistent unresolved issues = ongoing frustration |
+| Pothole density (Fix My Street) | 20% | Road condition from a distinct data source |
 | Streetlight/electrical faults per km² | 10% | Night-safety indicator |
 
-Each component is normalised 0–1 across all wards before combining, so the final score reflects relative stress, not absolute volume.
+Each component is normalised 0–1 across all wards before combining, so the score reflects relative stress, not absolute volume.
 
-### Time Windows Explained
+### Time Windows
 
 | Window | What it covers |
 |--------|---------------|
@@ -76,10 +83,10 @@ Each component is normalised 0–1 across all wards before combining, so the fin
 | Garbage | Solid waste collection, litter, illegal dumping |
 | Electrical / Streetlights | Streetlight outages, electrical hazards |
 | Roads | Potholes, road damage, footpath issues |
-| Revenue | Property tax, land records |
-| Forest / Trees | Tree falls, encroachments on green cover |
-| Lakes | Lake encroachment, water body pollution |
-| Khata Services | E-Khata, property registration |
+| Revenue | Property tax, land records, encroachments |
+| Forest / Trees | Tree falls, pruning requests, park encroachments |
+| Lakes | Lake encroachment, water body pollution, drain blockages |
+| Khata Services | E-Khata certificates, property registration, mutations |
 
 ---
 
@@ -93,7 +100,6 @@ Each component is normalised 0–1 across all wards before combining, so the fin
 ### 1 — Install dependencies
 
 ```bash
-# From the repo root
 cd server && npm install
 cd ../client && npm install
 ```
@@ -114,15 +120,16 @@ cd client
 npm run dev
 ```
 
-Open **http://localhost:5173**. The Vite dev server proxies all `/api` requests to the backend automatically.
+Open **http://localhost:5173**. Vite proxies all `/api` requests to the backend automatically.
 
 ### 4 — Using the app
 
-1. Wait for the warm-up screen to clear — the spinner in the top bar disappears when the cache is ready
+1. Wait for the warm-up screen to clear (spinner disappears when cache is ready)
 2. The map loads with the **7-day** view by default
-3. Click a time-window button in the sidebar to switch views — map recolours within ~200ms (data already cached)
-4. Click a category in the sidebar to filter; click it again (or click "All Categories") to clear
-5. Hover any ward polygon on the map for the detail panel
+3. Select a time window in the sidebar — map recolours within ~200ms (data already cached)
+4. Click a category chip to filter; click it again or click "+ more" to see all categories
+5. Expand "Neighbourhood" to zoom the map to a specific constituency
+6. Hover any ward for the quick summary panel; click it for the full detail drawer
 
 ---
 
@@ -143,8 +150,6 @@ The cron job runs automatically every 15 minutes once the server is live.
 2. Build command: `npm run build`
 3. Output directory: `dist`
 4. Set env var: `VITE_API_BASE=https://your-backend-url.railway.app` (if backend is not on same domain)
-
----
 
 ---
 
@@ -179,22 +184,33 @@ civic_pulse/
         ├── App.tsx               Layout: TopBar + Sidebar + map viewport
         ├── store/index.ts        Zustand global state
         ├── hooks/
-        │   ├── useWardBoundaries.ts  GeoJSON fetch + sessionStorage cache
+        │   ├── useWardBoundaries.ts  GeoJSON fetch + constituency assignment
         │   ├── useWardStats.ts       API poll on filter change; 202 → retry
         │   └── useCityStats.ts       City KPI fetch
         ├── components/
         │   ├── layout/
-        │   │   ├── TopBar.tsx        44px branding + data freshness
-        │   │   └── Sidebar.tsx       KPIs, time filter, category, intelligence
+        │   │   ├── TopBar.tsx           Branding + data freshness indicator
+        │   │   └── Sidebar.tsx          Filters, KPIs, Ward Intelligence
+        │   ├── controls/
+        │   │   └── NeighborhoodSelector.tsx  Constituency chip grid (28 areas)
         │   └── map/
-        │       ├── MapContainer.tsx  react-leaflet root, CartoDB Dark Matter
-        │       ├── ChoroplethLayer.tsx  GeoJSON fill by frustration score
-        │       ├── PulseLayer.tsx    Animated div-icon markers at centroids
-        │       ├── HoverPanel.tsx    Ward detail overlay (top-right)
-        │       └── MapLegend.tsx     Colour scale bar (bottom-left)
+        │       ├── MapContainer.tsx       react-leaflet root, CartoDB tiles
+        │       ├── ChoroplethLayer.tsx    GeoJSON fill by frustration score
+        │       ├── PulseLayer.tsx         Animated markers at ward centroids
+        │       ├── PulseMarker.tsx        Single animated pulse div-icon
+        │       ├── HoverPanel.tsx         Ward summary overlay on mouseover
+        │       ├── WardDrawer.tsx         Full ward detail panel on click
+        │       ├── ConstituencyZoomer.tsx flyToBounds on constituency select
+        │       └── CategoryExplainer.tsx  Contextual category overlay
+        ├── constants/
+        │   ├── categories.ts     Category metadata + plain-language explanations
+        │   ├── scoring.ts        Score weights + time filter list
+        │   ├── api.ts            Endpoint paths + GeoJSON URL
+        │   └── map.ts            Map centre, zoom, tile layer config
         └── utils/
-            ├── colorScale.ts     5-stop blue→crimson interpolation
-            └── centroidCalculator.ts  Shoelace formula centroid per polygon
+            ├── colorScale.ts         3-stop interpolation (slate→amber→red)
+            ├── centroidCalculator.ts Shoelace formula centroid per polygon
+            └── cache.ts              sessionStorage wrapper with TTL
 ```
 
 ## Data Sources
@@ -206,7 +222,7 @@ civic_pulse/
 | Fix My Street (potholes) | `22be8fdc-532d-4ec8-8e31-2e6d26d5ce85` | ~198 rows | Ward-level totals |
 | Ward Boundaries GeoJSON | DataMeet / Municipal_Spatial_Data (GitHub) | 243 features | 225 BBMP wards |
 
-All CKAN data is fetched from `https://data.opencity.in`. The CKAN API does not support server-side `GROUP BY`, so all aggregation happens in the Node.js backend.
+All CKAN data is fetched from `https://data.opencity.in`. The CKAN API does not support server-side `GROUP BY`, so all aggregation happens in Node.js.
 
 ## Backend Data Pipeline
 
@@ -218,41 +234,41 @@ aggregateAll()
   ├── Fetch Fix My Street totals (1 request)
   ├── Fetch all 2025 grievances + all 2024 grievances (parallel, semaphore-limited)
   │     └── ~334,000 records across ~336 paginated CKAN requests
+  ├── Sort all records by date desc (ensures recentComplaints are most-recent)
   ├── For each of 5 time windows [live, 24h, 7d, 30d, seasonal]:
   │     ├── filterToWindow(allRecords, windowStart, anchor)
+  │     ├── groupByWard → WardAccumulator (first 20 per ward = most recent)
   │     ├── Normalize ward names (fuzzy match → canonical GeoJSON name)
-  │     ├── Group by ward → WardRawMetrics
   │     ├── Compute frustration scores (min-max, 99th-pct clip)
   │     └── setWardStats(window, stats[])
   └── Cache updated; GET /api/ward-stats returns fresh data
 ```
 
-The key optimisation: all CKAN records are downloaded **once** and all five time windows are derived from that single in-memory dataset. The naïve approach (one full fetch per window) was 3× slower and caused timeouts.
+The key optimisation: all CKAN records are fetched **once** and all five time windows are derived from that single in-memory dataset. The naïve approach (one full fetch per window) was 3× slower.
 
 ### CKAN Fetcher
 
 - Max 1,000 records per request (API limit)
 - Semaphore: 8 concurrent requests maximum
-- Field projection: only 4 fields fetched (`Ward Name`, `Category`, `Grievance Status`, `Grievance Date`) — reduces payload ~55%
-- Retries on HTTP 429 with exponential backoff
+- Fields projected: `Ward Name`, `Category`, `Sub Category`, `Grievance Status`, `Grievance Date`, `Complaint ID` — reduces payload ~50%
+- Retries on HTTP 429 with exponential backoff (2s, 4s, 6s)
+- 30-second timeout per request
 
 ### Date Handling
 
 CKAN timestamps use nanosecond precision: `"2025-01-15 09:23:11.000000000"`. The parser strips the sub-second part and parses via standard `Date`.
 
-**Window anchoring:** Because the datasets end in June 2025 and the current date is ~Feb 2026, all relative windows (`7d`, `30d`, etc.) are anchored to the dataset's maximum date rather than wall-clock time. This ensures windows always contain data.
+**Window anchoring:** Because the datasets end in June 2025 and the current date is later, all relative windows (`7d`, `30d`, etc.) are anchored to the dataset's maximum date rather than wall-clock time. This ensures windows always contain data.
 
-### Ward Name Normalization
+### Ward Name Normalisation
 
 Three datasets use inconsistent naming conventions (e.g. `"B T M Layout"` vs `"BTM Layout"`, `"Halsoor"` vs `"Ulsoor"`). Resolution is multi-stage:
 
-1. Check `client/public/ward_name_map.json` (50+ manual overrides)
+1. Check `client/public/ward_name_map.json` (manual overrides)
 2. Exact match after lowercase + strip punctuation
 3. Prefix / substring match (unambiguous)
 4. Levenshtein similarity ≥ 0.80
 5. Unresolved names are logged and excluded from the choropleth
-
-Currently ~169 of 225 wards are matched. Unmatched wards appear grey on the map.
 
 ### Frustration Score Formula
 
@@ -264,7 +280,7 @@ FrustrationScore(ward) =
   + normalize(streetlight_density) × 0.10
 ```
 
-Where `normalize(x) = (x - p1) / (p99 - p1)`, clipped to [0, 1]. Ward area in km² is derived from the GeoJSON polygon using the shoelace formula at Bengaluru's latitude (12.97°N: 1° lon ≈ 108.2 km).
+Where `normalize(x) = (x − p1) / (p99 − p1)`, clipped to [0, 1]. Ward area in km² is derived from the GeoJSON polygon using the shoelace formula at Bengaluru's latitude (12.97°N: 1° lon ≈ 108.2 km). MultiPolygon areas are summed across all rings.
 
 ## API Reference
 
@@ -276,7 +292,7 @@ Returns server status and which time windows are cached.
 {
   "status": "ok",
   "cachedWindows": ["live", "24h", "7d", "30d", "seasonal"],
-  "updatedAt": "2025-06-19T10:00:00Z"
+  "uptime": 3720
 }
 ```
 
@@ -303,15 +319,15 @@ Returns HTTP 202 `{ "warming": true }` if the cache is not yet ready.
       "totalComplaints": 312,
       "unresolvedComplaints": 48,
       "dominantCategory": "Solid Waste (Garbage) Related",
-      "categoryBreakdown": {
-        "Solid Waste (Garbage) Related": 180,
-        "Electrical": 72
-      },
+      "categoryBreakdown": { "Solid Waste (Garbage) Related": 180, "Electrical": 72 },
       "potholeComplaints": 14,
       "frustrationScore": 0.855,
       "resolutionRatePercent": 84.6,
       "trend": "rising",
-      "previousPeriodTotal": 198
+      "previousPeriodTotal": 198,
+      "recentComplaints": [
+        { "id": "GRV123", "category": "Electrical", "subCategory": "Street Light not Working", "date": "2025-06-18", "status": "Registered" }
+      ]
     }
   ]
 }
@@ -323,10 +339,10 @@ Returns the four Ward Intelligence spotlights plus the city-wide resolution rate
 
 ```json
 {
-  "mostFrustrated":   { "wardName": "HRBR Layout",   "frustrationScore": 0.855, "topIssue": "Solid Waste (Garbage) Related" },
-  "suddenSpike":      { "wardName": "Devasandra",     "changePercent": 350,      "currentTotal": 27 },
-  "fastestResolution":{ "wardName": "Bapuji Nagar",   "resolutionRatePercent": 85.0 },
-  "mostImproved":     { "wardName": "Gayithri Nagar", "changePercent": -50,      "currentTotal": 12 },
+  "mostFrustrated":    { "wardName": "HRBR Layout",    "frustrationScore": 0.855, "topIssue": "Solid Waste (Garbage) Related" },
+  "suddenSpike":       { "wardName": "Devasandra",      "changePercent": 350,      "currentTotal": 27 },
+  "fastestResolution": { "wardName": "Bapuji Nagar",    "resolutionRatePercent": 85.0 },
+  "mostImproved":      { "wardName": "Gayithri Nagar",  "changePercent": -50,      "currentTotal": 12 },
   "cityAvgResolutionRate": 49.4
 }
 ```
@@ -338,34 +354,34 @@ interface Store {
   // Filters (drive API refetches)
   timeFilter: 'live' | '24h' | '7d' | '30d' | 'seasonal';
   activeCategory: string | null;
+  activeConstituency: string | null;
 
-  // Data
-  wardStats: Map<string, WardStats>;       // keyed by wardName
-  wardBoundaries: FeatureCollection | null;
-  centroids: WardCentroid[];
-  cityStats: CityStats | null;
+  // Map data
+  wardStats: Map<string, WardStats>;        // keyed by canonical ward name
+  wardBoundaries: FeatureCollection | null; // DataMeet GeoJSON (sessionStorage cached)
+  centroids: WardCentroid[];                // Shoelace centroid per ward polygon
+  constituencyWardMap: Map<string, string[]>; // nearest-centroid assignment
+  cityStats: CityStatsResponse | null;
 
   // UI
-  hoveredWardName: string | null;
+  hoveredWardName: string | null;   // drives HoverPanel
+  activeWardName: string | null;    // drives WardDrawer
+  showPulses: boolean;
   isLoadingWards: boolean;
   totalComplaints: number;
   updatedAt: string | null;
 }
 ```
 
-The `useWardStats` hook watches `timeFilter` and `activeCategory`. On change it GETs `/api/ward-stats`, handles the 202 warming response by polling every 8 seconds, and updates the store. `ChoroplethLayer` and `PulseLayer` both read from the store and re-render reactively.
-
 ## Colour Scale
 
-Five-stop linear interpolation:
+3-stop linear interpolation, chosen to blend with the CartoDB light tile layer:
 
 | Score | Hex | Label |
 |-------|-----|-------|
-| 0.00 | `#1e3a5f` | Very low (deep blue) |
-| 0.25 | `#0d7377` | Low (teal) |
-| 0.50 | `#f4a500` | Medium (amber) |
-| 0.75 | `#e85d04` | High (orange) |
-| 1.00 | `#9b0000` | Severe (dark crimson) |
+| 0.0 | `#e2e8f0` | Low (slate, near-invisible) |
+| 0.5 | `#f59e0b` | Medium (amber) |
+| 1.0 | `#ef4444` | High (red) |
 
 ## Key Packages
 
@@ -376,13 +392,12 @@ Five-stop linear interpolation:
 | `axios` | CKAN HTTP requests (server-side) |
 | `react-leaflet` + `leaflet` | Interactive map |
 | `zustand` | Client state management |
-| `tailwindcss` | Utility CSS |
 
 ## Known Limitations
 
 | Limitation | Detail |
 |-----------|--------|
 | ~56 unmatched wards | Ward names in CKAN don't fuzzy-match GeoJSON; appear grey |
-| Data ends Jun 2025 | CKAN snapshots are not yet updated to H2 2025 |
+| Data ends Jun 2025 | CKAN snapshots not yet updated to H2 2025 |
 | No real complaint coordinates | Pulses appear at ward polygon centroids, not precise locations |
 | Pothole data is ward totals | Fix My Street doesn't expose individual complaint dates |

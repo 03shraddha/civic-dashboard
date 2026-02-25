@@ -25,12 +25,18 @@ interface Store {
 
   // UI
   hoveredWardName: string | null;
+  activeWardName: string | null;
   showPulses: boolean;
+
+  // Derived / computed
+  constituencyWardMap: Map<string, string[]>;
 
   // Actions
   setActiveCategory: (cat: string | null) => void;
   setTimeFilter: (time: TimeFilter) => void;
   setActiveConstituency: (con: string | null) => void;
+  setActiveWardName: (name: string | null) => void;
+  setConstituencyWardMap: (map: Map<string, string[]>) => void;
   setWardStats: (wards: WardStats[], total: number, updatedAt: string) => void;
   setWardBoundaries: (geo: FeatureCollection) => void;
   setCentroids: (centroids: WardCentroid[]) => void;
@@ -59,7 +65,9 @@ export const useStore = create<Store>((set) => ({
   wardError: null,
 
   hoveredWardName: null,
+  activeWardName: null,
   showPulses: true,
+  constituencyWardMap: new Map(),
 
   setActiveCategory: (cat) => set({ activeCategory: cat }),
   setTimeFilter: (time) => set({ timeFilter: time }),
@@ -78,5 +86,7 @@ export const useStore = create<Store>((set) => ({
   setIsLoadingCity: (loading) => set({ isLoadingCity: loading }),
   setWardError: (err) => set({ wardError: err }),
   setHoveredWardName: (name) => set({ hoveredWardName: name }),
+  setActiveWardName: (name) => set({ activeWardName: name }),
   setShowPulses: (show) => set({ showPulses: show }),
+  setConstituencyWardMap: (map) => set({ constituencyWardMap: map }),
 }));
