@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { ENDPOINTS } from '../../constants/api';
 
 interface Props {
@@ -6,19 +6,35 @@ interface Props {
 }
 
 const STEPS = [
-  { until: 10,  label: 'Waking up the server…',                      detail: 'The free hosting tier sleeps after inactivity. Shouldn\'t take long.' },
-  { until: 35,  label: 'Fetching 300,000+ BBMP complaint records…',  detail: 'Pulling grievance data from the BBMP open data portal in batches.' },
-  { until: 60,  label: 'Matching ward names across datasets…',        detail: 'Three datasets use different spellings — fuzzy-matching them now.' },
-  { until: 85,  label: 'Computing frustration scores per ward…',      detail: 'Weighing complaint density, resolution rates, potholes & streetlights.' },
-  { until: Infinity, label: 'Almost ready — finishing up…',           detail: 'Caching results so every subsequent load takes under a second.' },
+  { until: 10,  label: 'Waking up the server...',                      detail: 'The free hosting tier sleeps after inactivity. Shouldn\'t take long.' },
+  { until: 35,  label: 'Fetching 300,000+ BBMP complaint records...',  detail: 'Pulling grievance data from the BBMP open data portal in batches.' },
+  { until: 60,  label: 'Matching ward names across datasets...',        detail: 'Three datasets use different spellings - fuzzy-matching them now.' },
+  { until: 85,  label: 'Computing frustration scores per ward...',      detail: 'Weighing complaint density, resolution rates, potholes & streetlights.' },
+  { until: Infinity, label: 'Almost ready - finishing up...',           detail: 'Caching results so every subsequent load takes under a second.' },
 ];
 
 export function WarmingUp({ onReady }: Props) {
   const [elapsed, setElapsed] = useState(0);
+  const TYPED_MSG = 'This only happens once - subsequent loads take under a second.';
+  const [typedText, setTypedText] = useState('');
+  const typedRef = useRef(0);
 
   useEffect(() => {
     const interval = setInterval(() => setElapsed(s => s + 1), 1000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Typewriter effect — starts after 2s, types one char every 40ms
+  useEffect(() => {
+    const start = setTimeout(() => {
+      const ticker = setInterval(() => {
+        typedRef.current += 1;
+        setTypedText(TYPED_MSG.slice(0, typedRef.current));
+        if (typedRef.current >= TYPED_MSG.length) clearInterval(ticker);
+      }, 40);
+      return () => clearInterval(ticker);
+    }, 2000);
+    return () => clearTimeout(start);
   }, []);
 
   useEffect(() => {
@@ -117,7 +133,7 @@ export function WarmingUp({ onReady }: Props) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: '10px', color: '#fff', fontWeight: 700,
               }}>
-                {done ? '✓' : active ? '…' : ''}
+                {done ? '✓' : active ? '.' : ''}
               </div>
               <span style={{ fontSize: '13px', color: done ? '#22c55e' : active ? '#1e293b' : '#94a3b8', fontWeight: active ? 600 : 400 }}>
                 {s.label}
@@ -127,8 +143,15 @@ export function WarmingUp({ onReady }: Props) {
         })}
       </div>
 
-      <p style={{ color: '#94a3b8', fontSize: '12px', textAlign: 'center' }}>
-        {elapsed}s elapsed · This only happens once — subsequent loads take under a second.
+      <p style={{ color: '#64748b', fontSize: '15px', textAlign: 'center', fontFamily: 'monospace', minHeight: '24px' }}>
+        {elapsed}s elapsed ·{' '}
+        <span style={{ color: '#6366f1' }}>
+          {typedText}
+          {typedText.length < TYPED_MSG.length && (
+            <span style={{ borderRight: '2px solid #6366f1', marginLeft: '1px', animation: 'blink 0.8s step-end infinite' }}>&nbsp;</span>
+          )}
+        </span>
+        <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
       </p>
     </div>
   );

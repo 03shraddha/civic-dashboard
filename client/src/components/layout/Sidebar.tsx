@@ -55,7 +55,7 @@ export function Sidebar() {
             fontSize: '28px', fontWeight: 700, color: '#0f172a',
             lineHeight: 1, letterSpacing: '-0.02em',
           }}>
-            {isLoadingWards ? '—' : totalComplaints.toLocaleString()}
+            {isLoadingWards ? '-' : totalComplaints.toLocaleString()}
           </div>
           <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
             complaints · {timeFilter} window

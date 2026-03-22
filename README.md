@@ -1,4 +1,6 @@
-# Grievance Map — Bengaluru
+# Grievance Map | Bengaluru
+
+**Live:** [civic-dashboard-kappa.vercel.app](https://civic-dashboard-kappa.vercel.app)
 
 Analyse BBMP complaints across Bengaluru. A civic intelligence map that turns 300,000+ raw BBMP complaint records into a ward-by-ward heat map of urban stress, built entirely on public government open data.
 

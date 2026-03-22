@@ -38,7 +38,7 @@ export function ComplaintCounter() {
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
         <span style={{ fontSize: '24px', fontWeight: 800, color: '#f1f5f9', lineHeight: 1 }}>
-          {isLoadingWards ? '—' : displayed.toLocaleString()}
+          {isLoadingWards ? '-' : displayed.toLocaleString()}
         </span>
         <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 400 }}>complaints</span>
       </div>

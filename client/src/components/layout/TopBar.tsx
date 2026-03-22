@@ -64,7 +64,7 @@ export function TopBar() {
               border: '2px solid #6366f1', borderTopColor: 'transparent',
               animation: 'spin 0.8s linear infinite',
             }} />
-            <span style={{ fontSize: '12px', color: '#475569' }}>Updating…</span>
+            <span style={{ fontSize: '12px', color: '#475569' }}>Updating...</span>
           </div>
         )}
         {timeAgo && !isLoadingWards && (
