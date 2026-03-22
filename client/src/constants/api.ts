@@ -1,10 +1,11 @@
-// Backend base URL — in development, Vite proxies /api to localhost:3001
-export const API_BASE = '';
+// In dev, Vite proxies /api → localhost:3001 so API_BASE is empty.
+// In production, set VITE_API_BASE_URL to the Render server URL.
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '';
 
 export const ENDPOINTS = {
-  wardStats: '/api/ward-stats',
-  cityStats: '/api/city-stats',
-  health: '/health',
+  wardStats: `${API_BASE}/api/ward-stats`,
+  cityStats: `${API_BASE}/api/city-stats`,
+  health: `${API_BASE}/health`,
 } as const;
 
 export const GEOJSON_URL =

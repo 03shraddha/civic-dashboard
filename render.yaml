@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: civic-pulse-server
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    # Free tier — spins down after 15 min of inactivity.
+    # Use UptimeRobot to ping /health every 14 min to keep it alive.
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: CLIENT_ORIGIN
+        # Set this to your Vercel deployment URL after deploying the client.
+        # Example: https://civic-pulse.vercel.app
+        sync: false
