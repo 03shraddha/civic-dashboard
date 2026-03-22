@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { ENDPOINTS } from './constants/api';
 import { MapContainer } from './components/map/MapContainer';
 import { ChoroplethLayer } from './components/map/ChoroplethLayer';
 import { PulseLayer } from './components/map/PulseLayer';
@@ -55,10 +56,10 @@ export default function App() {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    fetch('/health')
+    fetch(ENDPOINTS.health)
       .then(r => r.json())
       .then(d => { if (d.cachedWindows?.length > 0) setReady(true); })
-      .catch(() => setReady(true));
+      .catch(() => { /* server unreachable — WarmingUp will keep polling */ });
   }, []);
 
   const handleReady = useCallback(() => setReady(true), []);
