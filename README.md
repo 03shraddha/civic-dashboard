@@ -100,6 +100,14 @@ Each component is normalised 0–1 across all wards before combining, so the sco
 
 This project combines three independent sources, each maintained by a different organisation, each using different naming conventions and formats. Getting them to align is a significant fraction of the engineering work.
 
+| Source | Provider | Format | Records | Key Gap |
+|--------|----------|--------|---------|---------|
+| BBMP Grievances 2024+2025 | OpenCity CKAN | Per-complaint rows | ~334,000 | No coordinates per complaint |
+| Potholes (Fix My Street) | OpenCity CKAN | Ward-level totals | ~198 rows | No timestamps |
+| Ward Boundaries | DataMeet GeoJSON | Polygon features | 243 features (obsolete) | Reflects 2022 draft, not current 225 wards |
+| Ward Name Mapping | Hand-curated JSON | Key-value pairs | ~80+ entries | Manual, known to be incomplete |
+| Constituency Centres | Hand-curated JSON | Lat/lng points | 28 points | No official boundary polygons exist |
+
 ### 1. BBMP Grievances - OpenCity CKAN
 
 - **Portal:** [data.opencity.in](https://data.opencity.in) - a programme of the **Oorvani Foundation** (which also runs Citizen Matters); built with technical support from CivicDataLab and the DataMeet community. Hosts 1,272+ datasets, 500+ Bengaluru-specific, 151 from BBMP directly
@@ -114,7 +122,13 @@ This project combines three independent sources, each maintained by a different 
 
 - **Fields used:** `Ward Name`, `Category`, `Sub Category`, `Grievance Status`, `Grievance Date`, `Complaint ID`
 - **Format issues:** Timestamps are stored with nanosecond precision (`"2025-01-15 09:23:11.000000000"`) - non-standard, requires custom parsing
-- **Complaint statuses tracked:** `Registered` (open), `ReOpen` (re-escalated), `Closed` (resolved)
+- **Complaint statuses tracked:**
+
+| Status | Meaning |
+|--------|---------|
+| `Registered` | New complaint, open |
+| `ReOpen` | Re-escalated by citizen after disputed closure |
+| `Closed` | Marked resolved by BBMP |
 - **What is NOT in this data:** No latitude/longitude for individual complaints. Every complaint is tagged only to a ward name - a string - with no precise geolocation
 
 ### 2. Pothole Data - Fix My Street via OpenCity CKAN
@@ -190,11 +204,13 @@ Three independent datasets, three independent naming conventions, no shared key.
 
 The central data harmonisation challenge: BBMP complaint records, Fix My Street totals, and KGIS ward polygons all refer to the same 225 wards but use incompatible names. Joining them requires a multi-stage resolution pipeline:
 
-1. **Manual map lookup** - check `ward_name_map.json` first. Catches completely different names (e.g. `Halsoor` → `Ulsoor`) that no algorithm will find
-2. **Exact normalised match** - lowercase both sides, strip the word "ward", strip non-alphanumeric characters, collapse whitespace. Catches spacing and punctuation differences
-3. **Prefix/substring match** - if the normalised CKAN name is a prefix of, or contained within, a normalised GeoJSON name (or vice versa), and that match is unique, accept it. Catches truncations
-4. **Levenshtein similarity ≥ 0.80** - full dynamic-programming edit-distance ratio. Catches transliteration variants (`Nilasandra` → `Neelasandra`)
-5. **Unresolved** - names that pass through all four stages without a match are logged and excluded. Those wards appear grey on the map
+| Stage | Technique | What it catches |
+|-------|-----------|----------------|
+| 1 | Manual map lookup (`ward_name_map.json`) | Completely different names - e.g. `Halsoor` → `Ulsoor`, `Indiranagar` → `Domlur` |
+| 2 | Exact normalised match (lowercase, strip punctuation, collapse whitespace) | Spacing and punctuation differences - e.g. `B T M Layout` → `BTM Layout` |
+| 3 | Prefix/substring match (unambiguous) | Truncations where one name is contained in another |
+| 4 | Levenshtein similarity ≥ 0.80 | Transliteration variants - e.g. `Nilasandra` → `Neelasandra` |
+| 5 | Unresolved | Logged and excluded; appear grey on the map with no data |
 
 After all four stages plus the manual map, approximately 169 of 225 wards match. ~56 wards remain grey due to naming that is too divergent for automated resolution.
 
@@ -212,18 +228,24 @@ After all four stages plus the manual map, approximately 169 of 225 wards match.
 - **Fix:** Strip sub-millisecond digits before parsing
 - **Window anchoring:** Datasets end in June 2025 but wall-clock time is later; all windows (`7d`, `30d`, etc.) are anchored to the dataset's maximum date rather than `Date.now()` - without this, every window returns zero records
 - **Seasonal windows** use Bengaluru's meteorological calendar:
-  - Summer: Mar–May
-  - Monsoon: Jun–Oct
-  - Post-monsoon: Nov
-  - Winter: Dec–Feb
+
+| Season | Months |
+|--------|--------|
+| Summer | Mar–May |
+| Monsoon | Jun–Oct |
+| Post-monsoon | Nov |
+| Winter | Dec–Feb |
 
 ### Area Calculation
 
 - **Problem:** Ward areas are not stored in the GeoJSON - must be computed from polygon coordinates
-- **Method:** Shoelace formula on raw GeoJSON coordinates
-- **Bengaluru-specific constants:** `1° latitude = 111.0 km`, `1° longitude = 108.2 km` (cosine-corrected for 12.97°N)
-- **MultiPolygon handling:** Areas of all rings are summed
-- **Safety floor:** Minimum `0.5 km²` to prevent division-by-zero in density calculations
+- **Method:** Shoelace formula on raw GeoJSON coordinates; MultiPolygon areas summed across all rings
+
+| Parameter | Value | Why |
+|-----------|-------|-----|
+| 1° latitude | 111.0 km | Standard Earth approximation |
+| 1° longitude | 108.2 km | Cosine-corrected for Bengaluru at 12.97°N |
+| Minimum area floor | 0.5 km² | Prevents division-by-zero in density calculations |
 
 ### Constituency Assignment
 
@@ -234,11 +256,14 @@ After all four stages plus the manual map, approximately 169 of 225 wards match.
 
 ### CKAN Pagination
 
-- **Constraint:** CKAN API returns at most 1,000 records per request
-- **Scale:** ~334,000 total records requires ~336 sequential page fetches per dataset
-- **Rate limit handling:** Semaphore of 8 concurrent requests maximum; exponential backoff (2s → 4s → 6s) on HTTP 429
-- **Payload optimisation:** Only 6 of ~20 available fields are requested, reducing transfer size by ~50%
-- **Single-fetch strategy:** All records fetched once; all 5 time windows derived from that in-memory dataset - the naïve approach (one fetch per window) was 3× slower
+| Setting | Value | Purpose |
+|---------|-------|---------|
+| Max records per request | 1,000 | CKAN API hard limit |
+| Total pages required | ~336 | ~334,000 records at 1,000/request |
+| Concurrent requests | 8 (semaphore) | Rate limit compliance |
+| Retry backoff on HTTP 429 | 2s → 4s → 6s | Exponential backoff |
+| Fields requested | 6 of ~20 | Reduces transfer payload ~50% |
+| Fetch strategy | Single pass, 5 windows in-memory | 3× faster than per-window fetch |
 
 ---
 
