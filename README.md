@@ -2,7 +2,11 @@
 
 **Live:** [civic-dashboard-kappa.vercel.app](https://civic-dashboard-kappa.vercel.app)
 
-Analyse BBMP complaints across Bengaluru. A civic intelligence map that turns 300,000+ raw BBMP complaint records into a ward-by-ward heat map of urban stress, built entirely on public government open data.
+## What is this?
+
+- **It shows you where Bangalore is suffering.** Every BBMP complaint filed by a resident — potholes, garbage, broken streetlights, lake encroachments — is pulled from open government data and plotted on a map, ward by ward, so you can see at a glance which neighbourhoods are under the most civic stress
+- **It scores each ward, not just counts complaints.** A ward with 500 complaints and a 95% resolution rate is healthier than one with 80 complaints and 0% resolved. The "Frustration Score" blends complaint volume, unresolved rate, pothole density, and streetlight failures into a single 0–1 number per ward
+- **It's built entirely on public data, refreshed every 15 minutes.** No proprietary data, no scraping, no private APIs — only datasets that any citizen or researcher can access themselves
 
 ---
 
@@ -89,6 +93,222 @@ Each component is normalised 0–1 across all wards before combining, so the sco
 | Forest / Trees | Tree falls, pruning requests, park encroachments |
 | Lakes | Lake encroachment, water body pollution, drain blockages |
 | Khata Services | E-Khata certificates, property registration, mutations |
+
+---
+
+## Data Sources
+
+This project combines three independent sources, each maintained by a different organisation, each using different naming conventions and formats. Getting them to align is a significant fraction of the engineering work.
+
+### 1. BBMP Grievances — OpenCity CKAN
+
+- **Portal:** [data.opencity.in](https://data.opencity.in) — a programme of the **Oorvani Foundation** (which also runs Citizen Matters); built with technical support from CivicDataLab and the DataMeet community. Hosts 1,272+ datasets, 500+ Bengaluru-specific, 151 from BBMP directly
+- **Mechanism:** CKAN REST API (`/api/3/action/datastore_search`); there is no official government API for this data — OpenCity sources it from BBMP portals, RTI responses, and community scraping
+- **Complaint source:** The underlying complaints come from **BBMP Sahaaya 2.0** ("Namma Bengaluru"), a unified grievance portal integrating BBMP, BESCOM, BWSSB, BMTC, and BMRCL. No public API exists for Sahaaya; data reaches OpenCity via periodic data releases, not a live feed
+- **Datasets used:**
+
+| Dataset | CKAN Resource ID | Records | Coverage |
+|---------|-----------------|---------|----------|
+| BBMP Grievances 2025 | `1342a93b-9a61-4766-9c34-c8357b7926c2` | ~127,000 | Jan–Jun 2025 |
+| BBMP Grievances 2024 | `2a3f29ef-a7a1-4fc3-b125-cbcc958a89d1` | ~207,000 | Full year 2024 |
+
+- **Fields used:** `Ward Name`, `Category`, `Sub Category`, `Grievance Status`, `Grievance Date`, `Complaint ID`
+- **Format issues:** Timestamps are stored with nanosecond precision (`"2025-01-15 09:23:11.000000000"`) — non-standard, requires custom parsing
+- **Complaint statuses tracked:** `Registered` (open), `ReOpen` (re-escalated), `Closed` (resolved)
+- **What is NOT in this data:** No latitude/longitude for individual complaints. Every complaint is tagged only to a ward name — a string — with no precise geolocation
+
+### 2. Pothole Data — Fix My Street via OpenCity CKAN
+
+- **CKAN Resource ID:** `22be8fdc-532d-4ec8-8e31-2e6d26d5ce85`
+- **What it contains:** ~198 rows of ward-level pothole complaint totals — one row per ward, not per complaint
+- **Key limitation:** Fix My Street data is a pre-aggregated ward total with no individual complaint dates, so it cannot be filtered by time window. The same ward-level pothole count is applied to all five time windows (Live, 24h, 7d, 30d, Seasonal)
+- **Coverage:** Ward-level only, no coordinates, no timestamps per complaint
+
+### 3. Ward Boundary Polygons — DataMeet / Municipal Spatial Data
+
+- **Source:** `github.com/datameet/Municipal_Spatial_Data` — a volunteer-maintained civic geo-data repository, maintained by the DataMeet community (data scraped originally from KSRSAC, the government GIS authority)
+- **URL used:** `https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Bangalore/BBMP.geojson`
+- **What it contains:** 243 GeoJSON features, scraped from KSRSAC at the time of the **July 2022 draft delimitation** — which was later superseded
+- **Critical caveat — this file is obsolete:** BBMP officially moved to **225 wards** on September 25, 2023. The DataMeet repo has not been updated to reflect this. There is no 225-ward GeoJSON in the DataMeet repo as of writing. The file used here represents a ward structure that no longer exists. This is the single most important data quality caveat in the entire project
+- **Ward naming scheme:** Uses KGIS (Karnataka Geographic Information System) canonical ward names — the government's official GIS naming standard for spatial features
+- **Why this source:** No official BBMP GeoJSON is publicly available in any machine-readable format. The DataMeet file is the only accessible ward boundary dataset used across Bangalore's civic tech community, despite its known staleness
+- **DataMeet's own disclaimer:** The repository README states "The data is not perfect as there are many errors both in data and boundaries." The underlying KSRSAC source itself carries: "shall not be used for any legal purpose as they are just representational maps and information which are to be validated"
+- **Fetch strategy:** Fetched once per cold start; cached in `sessionStorage` for 24 hours client-side
+
+### 4. Ward Name Mapping — Hand-curated (`ward_name_map.json`)
+
+- **What it is:** A manually maintained JSON file (~80+ entries) that maps CKAN ward name strings to their KGIS-canonical equivalents in the GeoJSON
+- **Why it exists:** The automated fuzzy matcher alone was insufficient — too many CKAN names have no obvious algorithmic path to the correct GeoJSON name
+- **Examples of entries:**
+
+| CKAN name (raw) | GeoJSON canonical | Type of mismatch |
+|-----------------|-------------------|------------------|
+| `B T M Layout` | `BTM Layout` | Spacing in acronym |
+| `Halsoor` | `Ulsoor` | Completely different name (historical rename) |
+| `Nilasandra` | `Neelasandra` | Kannada transliteration variant |
+| `Shivaji Nagar` | `Pulikeshinagar` | Entirely different name |
+| `Indiranagar` | `Domlur` | Neighbourhood name vs. ward name |
+| `HMT Ward` | `Peenya` | Colloquial/industrial name vs. administrative |
+| `K R Market` | `Chickpete` | Landmark name vs. ward name |
+| `Jayanagara` | `Jayamahal` | Historical vs. current administrative name |
+| `Yeshwanthpura` | `Malleswaram` | Reorganisation artifact |
+| `Deepanjali Nagar` | `Nandini Layout` | Locality name vs. ward name |
+
+### 5. A Note on Ward Counts: The Delimitation History
+
+Understanding which ward structure applies to any given dataset is the first question to ask before working with Bangalore civic data. The ward count has changed multiple times:
+
+| Date | Ward count | Status |
+|------|-----------|--------|
+| 2007 | 198 | BBMP formed by merger; 198 wards established |
+| 2015 | 198 | Last BBMP elections held; official ward maps published as PDF |
+| July 2022 | 243 (draft) | State government notifies draft delimitation; DataMeet GeoJSON scraped here |
+| Sep 25, 2023 | **225** | **Official final delimitation; current legal ward count as of writing** |
+| Oct 2025 | BBMP dissolved | Greater Bengaluru Authority (GBA) replaces BBMP under new Act |
+| Nov 2025 | 369 (GBA) | GBA notifies 369 wards across 5 new corporations |
+
+Key implications:
+- The DataMeet GeoJSON used in this project reflects **243 wards** (2022 draft) — not the current 225
+- BBMP's Sahaaya grievance portal still uses the **198-ward** structure in its backend as of mid-2025
+- OSM was updated to 225 wards by March 2024 (a 6-month lag after the official notification)
+- OpenCity hosts datasets for all three versions (198, 243, 225) without clear deprecation labelling
+- No elected ward councillors existed from 2020 to the 2026 GBA elections — a 6-year governance vacuum during which ward-level data accountability was absent
+
+### 6. Constituency Centres — Static (`constituency_centres.json`)
+
+- **What it is:** 28 hand-placed lat/lng points representing the approximate centres of Bengaluru's 28 assembly constituencies
+- **Why it is static:** No official GeoJSON for assembly constituency boundaries is publicly available for Bangalore
+- **How it is used:** Each of the 225 ward centroids is assigned to whichever constituency centre is nearest (by great-circle distance), building the neighbourhood filter
+
+---
+
+## Combining the Data: What We Had to Do
+
+Three independent datasets, three independent naming conventions, no shared key. Here is the full normalization stack that makes them interoperate.
+
+### The Ward Naming Problem
+
+The central data harmonisation challenge: BBMP complaint records, Fix My Street totals, and KGIS ward polygons all refer to the same 225 wards but use incompatible names. Joining them requires a multi-stage resolution pipeline:
+
+1. **Manual map lookup** — check `ward_name_map.json` first. Catches completely different names (e.g. `Halsoor` → `Ulsoor`) that no algorithm will find
+2. **Exact normalised match** — lowercase both sides, strip the word "ward", strip non-alphanumeric characters, collapse whitespace. Catches spacing and punctuation differences
+3. **Prefix/substring match** — if the normalised CKAN name is a prefix of, or contained within, a normalised GeoJSON name (or vice versa), and that match is unique, accept it. Catches truncations
+4. **Levenshtein similarity ≥ 0.80** — full dynamic-programming edit-distance ratio. Catches transliteration variants (`Nilasandra` → `Neelasandra`)
+5. **Unresolved** — names that pass through all four stages without a match are logged and excluded. Those wards appear grey on the map
+
+After all four stages plus the manual map, approximately 169 of 225 wards match. ~56 wards remain grey due to naming that is too divergent for automated resolution.
+
+**Why this is hard:**
+- Kannada has no single standardised Roman transliteration scheme — the same ward name can be spelled 3–5 different ways across different government systems ("Chowdeshwari" vs "Chowdeswari", "Rajajinagar" vs "Rajaji Nagar")
+- The 2023 delimitation renamed 15 wards outright — names from older datasets refer to wards that no longer exist or have been renamed. One ward (Ward 47) was renamed to "Dr. Puneet Rajkumar" after the actor's death; others after temples. These political renames have no algorithmic path
+- Some CKAN entries use neighbourhood names (e.g. `Indiranagar`) that are smaller than a ward and map to a different ward name (`Domlur`) in KGIS
+- Some entries use landmark or colloquial names (`HMT Ward`, `K R Market`) that appear nowhere in official ward lists
+- The CKAN data may reflect the 198-ward Sahaaya backend, while the GeoJSON reflects 243 wards — these are different delimitations, not just different spellings
+- BBMP's own official documents have been publicly criticised for containing Kannada translation errors and inconsistencies
+
+### Date Parsing
+
+- **Problem:** CKAN timestamps use nanosecond precision (`"2025-01-15 09:23:11.000000000"`) — rejected by JavaScript's `Date` constructor
+- **Fix:** Strip sub-millisecond digits before parsing
+- **Window anchoring:** Datasets end in June 2025 but wall-clock time is later; all windows (`7d`, `30d`, etc.) are anchored to the dataset's maximum date rather than `Date.now()` — without this, every window returns zero records
+- **Seasonal windows** use Bengaluru's meteorological calendar:
+  - Summer: Mar–May
+  - Monsoon: Jun–Oct
+  - Post-monsoon: Nov
+  - Winter: Dec–Feb
+
+### Area Calculation
+
+- **Problem:** Ward areas are not stored in the GeoJSON — must be computed from polygon coordinates
+- **Method:** Shoelace formula on raw GeoJSON coordinates
+- **Bengaluru-specific constants:** `1° latitude = 111.0 km`, `1° longitude = 108.2 km` (cosine-corrected for 12.97°N)
+- **MultiPolygon handling:** Areas of all rings are summed
+- **Safety floor:** Minimum `0.5 km²` to prevent division-by-zero in density calculations
+
+### Constituency Assignment
+
+- **Problem:** No official GeoJSON exists for assembly constituency boundaries
+- **Solution:** Nearest-centroid assignment — each ward centroid is compared to 28 hand-placed constituency anchor points and assigned to the closest one
+- **Accuracy correction:** Longitude difference is cosine-corrected for Bengaluru's latitude before computing distance
+- **Result:** Approximate only — a ward right on a constituency border may be assigned to the wrong one
+
+### CKAN Pagination
+
+- **Constraint:** CKAN API returns at most 1,000 records per request
+- **Scale:** ~334,000 total records requires ~336 sequential page fetches per dataset
+- **Rate limit handling:** Semaphore of 8 concurrent requests maximum; exponential backoff (2s → 4s → 6s) on HTTP 429
+- **Payload optimisation:** Only 6 of ~20 available fields are requested, reducing transfer size by ~50%
+- **Single-fetch strategy:** All records fetched once; all 5 time windows derived from that in-memory dataset — the naïve approach (one fetch per window) was 3× slower
+
+---
+
+## Accuracy & Limitations: A Map Data Perspective
+
+This project is a case study in what happens when civic data is assembled from independently-maintained, informally-structured open datasets. The following limitations are not fixable within this project — they are upstream data quality problems.
+
+### Data that is missing entirely
+
+- **No complaint coordinates** — BBMP's grievance system records which ward a complaint belongs to, but not where within the ward. Every pulse marker on the map sits at the ward's polygon centroid. A complaint filed from one end of a large ward and a complaint from the other end are indistinguishable. The map cannot show complaint hotspots within a ward
+- **No ward boundary GeoJSON from BBMP directly** — BBMP does not publish authoritative ward boundaries as open data. The DataMeet GeoJSON used here is a community-maintained file of uncertain provenance and update cadence
+- **No real-time data** — the CKAN snapshots are updated periodically (not continuously). The dataset used covers Jan–Jun 2025; H2 2025 data was not available at the time of writing
+- **Fix My Street data has no timestamps per complaint** — the pothole dataset is pre-aggregated. Individual complaint dates are not available, so pothole data cannot be filtered by the same time windows as grievance data
+
+### Ward boundary accuracy issues
+
+- **At least four independent datasets, none matching** — DataMeet, KGIS/KSRSAC, OpenStreetMap, and BBMP's own ArcGIS server (`gisapp.bbmpgov.in`) all maintain separate ward boundary files. A 2017 OpenCity framework document found "multiple agencies representing the same spatial data in 18 different ways and 6 different formats, with none being an exact match to the other"
+- **DataMeet's own disclaimer** — the repository explicitly states "The data is not perfect and contains many errors both in data and boundaries." The KSRSAC source it was scraped from carries: "shall not be used for any legal purpose." These are the caveats on the dataset used to draw every ward polygon in this map
+- **The delimitation churn problem** — Bangalore's ward count changed from 198 → 243 (July 2022, draft) → 225 (September 2023, final). Each transition invalidates existing datasets. OSM was showing **2009 ward boundaries** in 2023 when the delimitation exercise happened — 14 years out of date. The 2023 delimitation used 2011 Census data for a city whose population had roughly doubled since then
+- **The GeoJSON in this project reflects an obsolete ward structure** — the DataMeet file uses the 2022 draft (243 wards). The current official structure is 225 (since September 2023). BBMP was dissolved in October 2025 and replaced by the Greater Bengaluru Authority with 369 wards. Every ward polygon on this map may be drawing in the wrong place relative to current administrative reality
+- **Colonial-era mapping restriction legacy** — until 2021, 43% of India's territory was under mapping restrictions (Official Secrets Act 1923, MoD application since 1967). Municipal bodies could not digitize maps without clearance taking 18+ months. This systematically prevented BBMP from building accurate spatial infrastructure for decades. The institutional GIS capacity gap this created has not closed
+- **No official coordinate projection documentation** — Indian government GIS data has been published in both WGS-84 (GPS standard) and older Indian coordinate systems (Everest 1956, Kalyanpur). Mixing projections without documentation can shift boundaries by 200–500m
+- **MultiPolygon wards** — some wards are non-contiguous. The centroid of a MultiPolygon ward may fall outside the ward itself or in a geographically misleading location. This project uses vertex count, not area, to pick which ring to compute the centroid from — placing the centroid in a small fragment rather than the main body for some wards
+
+### Ward naming accuracy issues
+
+- **~56 of 225 wards are unmatched** — these appear grey on the map with zero data, even if thousands of complaints were filed there. The grey map is not evidence of a low-complaint area; it is evidence of a naming mismatch
+- **Duplicate key bug in `ward_name_map.json`** — `"Hoodi"` appears twice in the manual mapping file. The second entry silently overwrites the first in JSON parsers, which may cause subtle mismatches
+- **Fuzzy matching false positives** — a Levenshtein threshold of 0.80 will sometimes match the wrong ward, especially for short ward names or names that differ by one common suffix. There is no automated way to detect these silently wrong matches
+- **No canonical authoritative source** — there is no single government-published, machine-readable list that maps CKAN ward names to KGIS names to ward numbers. The manual mapping file in this repo is assembled from trial and error
+
+### Geocoding and address accuracy (why complaints can't be precisely located)
+
+Even if BBMP added complaint addresses to the dataset tomorrow, locating them accurately on a map would remain deeply difficult:
+
+- **Only ~40% of Indian addresses resolve to within 500m** when tested against commercial geocoding APIs at scale. In Bangalore, informal locality names, inconsistent transliteration, and missing or wrong pin codes degrade this further
+- **80% of Indian addresses use landmarks** as primary identifiers, positioned 50–1,500 metres from the actual location. The structural average error from landmark-based geocoding is ~400m — roughly the width of a large ward
+- **Pin codes are useless for sub-ward precision** — median pin code area is ~90–179 sq km, containing up to 1 million households. 20–30% of written addresses contain incorrect pin codes
+- **GPS capture is also unreliable** — research on large-scale GPS log collection in India found only 50% of captured GPS points accurate within 50m; only 10% accurate within 5m
+- **DIGIPIN** (launched May 2025, India Post + IIT Hyderabad + ISRO) introduces a 10-character alphanumeric code for every 4×4m grid in India — the first nationally standardised precise address system. Civic data systems have not yet integrated it
+
+### Crowdsourced data bias
+
+- **Demographic under-representation is structural** — research on crowdsourced civic complaint platforms in India confirms that "low-income and minority neighbourhoods are less likely to report street condition or nuisance issues" despite greater need. Civic apps disproportionately receive reports from higher-educated, affluent areas with better digital access
+- **The Fix My Street data used here is from May–June 2022** — a 2-month snapshot. No longitudinal public dataset exists. The app itself was relaunched in 2022 after a period of inactivity, so historical data continuity is broken
+- **4% of BBMP complaints are misfiled (wrong agency)** — citizens cannot determine whether an issue belongs to BBMP, BESCOM, BWSSB, or BMTC. This reflects the ward/boundary data problem: there is no clear public map of which agency is responsible for which roads and infrastructure in which areas
+
+### Scoring accuracy issues
+
+- **Complaint density depends on area accuracy** — the Frustration Score weights complaint density at 40%. If the GeoJSON polygon for a ward is drawn incorrectly (too large or too small), every density-based metric for that ward is wrong
+- **Pothole data is time-window-agnostic** — because Fix My Street does not expose complaint dates, the same pothole count is used for the 24-hour, 7-day, and 30-day views. A ward that fixed all its potholes last month will still show the same pothole density as a ward that filed them yesterday
+- **Resolution rate opacity** — only 0.3% of BBMP complaints are marked "In Progress" (suspicious for a large bureaucracy), and 1.3% are reopened by citizens who dispute resolution. The "Closed" status in BBMP data may reflect administrative closure, not actual resolution. No citizen satisfaction data is collected alongside resolution claims
+- **Resolution rate uses only `Closed` status** — complaints in `ReOpen` status are counted as unresolved, but the resolution rate percentage is computed only from `Closed / total`. The two metrics are not complementary
+- **City average resolution rate is an unweighted mean** — averaging per-ward resolution rates equally ignores the fact that some wards have 5 complaints and others have 5,000
+
+### Structural data quality issues
+
+- **CKAN has no server-side aggregation** — the API does not support `GROUP BY`. All 334,000+ records must be downloaded and aggregated in Node.js on every 15-minute refresh cycle. OpenCity's data refresh cadence is irregular — the 2025 dataset stops in June; H2 2025 data was not published as of writing
+- **Fragmented institutional GIS** — BBMP, KGIS/KSRSAC, BDA, and BMRDA all maintain independent GIS systems that are not synchronised. A 2017 OpenCity audit found 18 different representations and 6 different formats for the same spatial data across agencies, with none matching
+- **6-year governance vacuum** — BBMP had no elected ward councillors from 2020 to the 2026 GBA elections. During this period — encompassing the COVID pandemic, a major delimitation, and BBMP's fastest expansion period — there was no ward-level democratic accountability for service delivery or data quality
+- **Volunteer-maintained data has no SLA** — the DataMeet GeoJSON and OpenCity CKAN portal are maintained by civic volunteers. There is no guaranteed refresh schedule or quality gate
+
+### What AI could help with
+
+- **Automated ward name reconciliation** — an LLM with Kannada place-name context could resolve the ~56 unmatched wards more reliably than Levenshtein distance alone. The manually curated `ward_name_map.json` in this project is a starting training signal
+- **Boundary reconstruction from PDFs** — BBMP publishes official ward maps as scanned PDFs. Computer vision (document layout models + satellite imagery alignment) could produce a more accurate and current GeoJSON than the volunteer-maintained DataMeet file
+- **India-aware complaint geocoding** — models trained on Bangalore's address patterns (informal locality names, Kannada transliterations, survey numbers) could assign GPS coordinates to complaints. Google's Address Descriptors (2025) and Delhivery's AddFix (>90% accuracy within 200m) are examples of what is now achievable at scale
+- **Pothole detection from dashcam/satellite** — iWatchRoad (2025, arXiv) fine-tunes YOLO on Indian road frames, synchronizes dashcam timestamps with GPS logs, and outputs per-road-segment pothole heatmaps — directly solving the "Fix My Street has no coordinates" problem
+- **Anomaly detection in resolution rates** — models could flag wards where resolution rates suspiciously spike without corresponding reduction in new complaints, signalling bulk administrative closure rather than actual resolution
+- **Slum boundary mapping** — U-Net models on Sentinel-2 imagery have achieved 95–99% accuracy for slum delineation in Maharashtra cities. Peripheral Bangalore — where much BBMP boundary expansion is concentrated — maps poorly in existing civic data
 
 ---
 
@@ -214,17 +434,6 @@ civic_pulse/
             ├── centroidCalculator.ts Shoelace formula centroid per polygon
             └── cache.ts              sessionStorage wrapper with TTL
 ```
-
-## Data Sources
-
-| Dataset | CKAN Resource ID | Records | Coverage |
-|---------|-----------------|---------|----------|
-| BBMP Grievances 2025 | `1342a93b-9a61-4766-9c34-c8357b7926c2` | ~127,000 | Jan–Jun 2025 |
-| BBMP Grievances 2024 | `2a3f29ef-a7a1-4fc3-b125-cbcc958a89d1` | ~207,000 | Full year 2024 |
-| Fix My Street (potholes) | `22be8fdc-532d-4ec8-8e31-2e6d26d5ce85` | ~198 rows | Ward-level totals |
-| Ward Boundaries GeoJSON | DataMeet / Municipal_Spatial_Data (GitHub) | 243 features | 225 BBMP wards |
-
-All CKAN data is fetched from `https://data.opencity.in`. The CKAN API does not support server-side `GROUP BY`, so all aggregation happens in Node.js.
 
 ## Backend Data Pipeline
 
@@ -399,7 +608,13 @@ interface Store {
 
 | Limitation | Detail |
 |-----------|--------|
-| ~56 unmatched wards | Ward names in CKAN don't fuzzy-match GeoJSON; appear grey |
-| Data ends Jun 2025 | CKAN snapshots not yet updated to H2 2025 |
-| No real complaint coordinates | Pulses appear at ward polygon centroids, not precise locations |
-| Pothole data is ward totals | Fix My Street doesn't expose individual complaint dates |
+| GeoJSON is obsolete (243-ward draft) | DataMeet file reflects 2022 draft delimitation; official wards are 225 since Sep 2023 |
+| ~56 unmatched wards | Ward names in CKAN don't fuzzy-match GeoJSON; appear grey with no data |
+| Sahaaya backend uses 198-ward structure | CKAN ward names may reflect old ward numbering, not current 225 |
+| Data ends Jun 2025 | CKAN snapshots not updated to H2 2025; all windows anchored to June 19 |
+| No real complaint coordinates | Pulses appear at ward polygon centroids, not actual complaint locations |
+| Pothole data is ward totals, no timestamps | Fix My Street is a 2022 snapshot; same count applied to all time windows |
+| MultiPolygon centroid inaccuracy | Centroid computed from ring with most vertices, not largest area |
+| Unweighted city resolution rate | Simple mean of per-ward rates, skewed by small wards |
+| Resolution `Closed` ≠ actually resolved | Only 0.3% marked "In Progress"; bulk administrative closures not detectable |
+| No test runner | TypeScript is the primary correctness check |
