@@ -4,6 +4,7 @@ import { TIME_FILTERS, TimeFilter } from '../../constants/scoring';
 import { CATEGORIES } from '../../constants/categories';
 import { scoreToColor, LEGEND_STOPS } from '../../utils/colorScale';
 import { NeighborhoodSelector } from '../controls/NeighborhoodSelector';
+import { WardSearch } from '../controls/WardSearch';
 
 const TIME_LABELS: Record<TimeFilter, string> = {
   live: 'Live', '24h': '24h', '7d': '7d', '30d': '30d', seasonal: 'Season',
@@ -188,14 +189,21 @@ export function Sidebar() {
 
       <Divider />
 
-      {/* ── BLOCK 3: Neighbourhood ───────────── */}
+      {/* ── BLOCK 3: Ward Search ───────────── */}
+      <div style={{ padding: '16px' }}>
+        <WardSearch />
+      </div>
+
+      <Divider />
+
+      {/* ── BLOCK 4: Neighbourhood ───────────── */}
       <div style={{ padding: '16px' }}>
         <NeighborhoodSelector />
       </div>
 
       <Divider />
 
-      {/* ── BLOCK 4: Ward Insights ───────────── */}
+      {/* ── BLOCK 5: Ward Insights ───────────── */}
       <div style={{ padding: '16px', flex: 1 }}>
         <Label>Ward Insights</Label>
 

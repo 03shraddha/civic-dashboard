@@ -2,7 +2,7 @@ import axios, { AxiosError } from 'axios';
 
 const CKAN_BASE = 'https://data.opencity.in/api/3/action';
 const PAGE_SIZE = 1000;
-const MAX_CONCURRENT = 8;
+const MAX_CONCURRENT = 16;
 const RETRY_LIMIT = 3;
 
 export interface RawGrievanceRecord {
@@ -111,10 +111,33 @@ export async function fetchAllRecords<T = RawGrievanceRecord>(
     ).then(r => r.records)
   );
 
-  const pages = await Promise.all(pagePromises);
-  const all = pages.flat();
+  const settled = await Promise.allSettled(pagePromises);
+  const all: T[] = [];
+  let failedPages = 0;
+  for (const result of settled) {
+    if (result.status === 'fulfilled') {
+      all.push(...result.value);
+    } else {
+      failedPages++;
+    }
+  }
+  if (failedPages > 0) {
+    console.warn(`[CKAN] ${failedPages}/${settled.length} pages failed for ${resourceId} — using partial data`);
+  }
   console.log(`[CKAN] Fetched ${all.length} records from ${resourceId}`);
   return all;
+}
+
+/**
+ * Get the total record count for a resource without fetching any rows.
+ * Used by the smart cron to skip re-aggregation when data is unchanged.
+ */
+export async function getResourceCount(resourceId: string): Promise<number> {
+  const result = await fetchWithRetry<CkanSearchResult<unknown>>(
+    `${CKAN_BASE}/datastore_search`,
+    { resource_id: resourceId, limit: 0 }
+  );
+  return result.total;
 }
 
 /**
