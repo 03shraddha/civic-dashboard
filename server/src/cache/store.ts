@@ -28,6 +28,10 @@ export function setWardStats(timeWindow: string, stats: WardStats[]): void {
   setCacheEntry(`ward-stats:${timeWindow}`, stats);
 }
 
+export function setWardStatsWithDate(timeWindow: string, stats: WardStats[], updatedAt: Date): void {
+  cache.set(`ward-stats:${timeWindow}`, { data: stats, updatedAt });
+}
+
 export function getWardStats(timeWindow: string): { data: WardStats[]; updatedAt: Date } | null {
   const entry = getCacheEntry<WardStats[]>(`ward-stats:${timeWindow}`);
   if (!entry) return null;

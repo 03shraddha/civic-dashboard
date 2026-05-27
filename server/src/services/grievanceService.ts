@@ -1,4 +1,4 @@
-import { fetchAllRecords, RawGrievanceRecord } from './ckan';
+import { fetchAllRecords, getResourceCount, RawGrievanceRecord } from './ckan';
 import { parseNanoTimestamp, getWindowStart } from '../utils/dateParser';
 
 // Confirmed CKAN resource IDs (data.opencity.in)
@@ -76,3 +76,15 @@ export function filterToWindow(
 }
 
 export { getWindowStart };
+
+/**
+ * Fetch the combined record count from both CKAN datasets without downloading any rows.
+ * Used by the smart cron to detect whether new data is available.
+ */
+export async function getTotalGrievanceCount(): Promise<number> {
+  const [count2025, count2024] = await Promise.all([
+    getResourceCount(RESOURCE_2025),
+    getResourceCount(RESOURCE_2024),
+  ]);
+  return count2025 + count2024;
+}

@@ -6,13 +6,87 @@
  * 300k+ records multiple times.
  */
 import path from 'path';
+import fs from 'fs';
 import axios from 'axios';
-import { fetchAllGrievanceRecords, filterToWindow, ParsedGrievance } from './grievanceService';
+import { fetchAllGrievanceRecords, filterToWindow, ParsedGrievance, getTotalGrievanceCount } from './grievanceService';
 import { fetchPotholeCounts } from './potholeService';
 import { WardNormalizer } from '../utils/wardNormalizer';
 import { WardRawMetrics, computeFrustrationScores, WardStats } from '../utils/frustrationScore';
 import { getWindowStart, findDatasetMaxDate } from '../utils/dateParser';
-import { setWardStats } from '../cache/store';
+import { setWardStats, setWardStatsWithDate } from '../cache/store';
+
+// server/data/ — persisted pre-computed aggregates survive process restarts
+// Path resolves to server/data/ in both ts-node (src/services/) and compiled (dist/services/)
+const DATA_DIR = path.resolve(__dirname, '../../data');
+
+function diskPath(window: string): string {
+  return path.join(DATA_DIR, `ward-stats-${window}.json`);
+}
+
+function persistToDisk(window: string, stats: WardStats[], updatedAt: Date): void {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(
+      diskPath(window),
+      JSON.stringify({ data: stats, updatedAt: updatedAt.toISOString() }),
+      'utf-8'
+    );
+  } catch (err) {
+    console.warn(`[Aggregator] Could not persist window=${window} to disk:`, err);
+  }
+}
+
+/**
+ * Loads all 5 pre-computed time windows from disk into the in-memory cache.
+ * Returns true only when every window was found and loaded — the server can
+ * then serve immediately and run a background refresh instead of blocking.
+ */
+export function loadFromDisk(): boolean {
+  let loaded = 0;
+  for (const window of TIME_WINDOWS) {
+    try {
+      const raw = fs.readFileSync(diskPath(window), 'utf-8');
+      const { data, updatedAt } = JSON.parse(raw) as { data: WardStats[]; updatedAt: string };
+      setWardStatsWithDate(window, data, new Date(updatedAt));
+      console.log(`[Aggregator] Disk cache: loaded ${data.length} wards for window=${window}`);
+      loaded++;
+    } catch {
+      // File missing or corrupt — will be written after next aggregation
+    }
+  }
+  if (loaded === TIME_WINDOWS.length) {
+    console.log('[Aggregator] All 5 windows loaded from disk — server ready immediately.');
+    return true;
+  }
+  console.log(`[Aggregator] Disk cache: ${loaded}/${TIME_WINDOWS.length} windows found.`);
+  return false;
+}
+
+// Tracks the last known CKAN record count so the cron can skip a full
+// re-fetch when the upstream snapshot has not changed.
+let _lastKnownTotal = 0;
+
+/**
+ * Checks whether CKAN has new data by comparing the total record count
+ * to the last known count. Two cheap limit=0 requests (~100ms total).
+ * Returns true on first call (no baseline), true on error (fail-safe), or
+ * true when the count changed.
+ */
+export async function hasDataChanged(): Promise<boolean> {
+  try {
+    const total = await getTotalGrievanceCount();
+    if (_lastKnownTotal > 0 && total === _lastKnownTotal) {
+      console.log(`[Aggregator] CKAN count unchanged (${total}) — skipping re-fetch.`);
+      return false;
+    }
+    console.log(`[Aggregator] CKAN count: ${_lastKnownTotal} → ${total}.`);
+    _lastKnownTotal = total;
+    return true;
+  } catch (err) {
+    console.warn('[Aggregator] Count check failed — will re-fetch to be safe:', err);
+    return true;
+  }
+}
 
 const DATAMEET_GEOJSON_URL =
   'https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Bangalore/BBMP.geojson';
@@ -263,7 +337,9 @@ export async function aggregateAll(): Promise<void> {
     }
 
     const stats = buildWardStats(wardMap, prevByCanonical, potholeByCanonical, geoByCanonical);
+    const windowUpdatedAt = new Date();
     setWardStats(window, stats);
+    persistToDisk(window, stats, windowUpdatedAt);
     console.log(`[Aggregator] Cached ${stats.length} wards for window=${window}`);
   }
 

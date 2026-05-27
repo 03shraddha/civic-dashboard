@@ -4,6 +4,7 @@ import wardStatsRouter from './routes/wardStats';
 import cityStatsRouter from './routes/cityStats';
 import healthRouter from './routes/health';
 import { startCron, runAggregation } from './cron';
+import { loadFromDisk } from './services/aggregator';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -28,7 +29,15 @@ app.use((_req, res) => {
 app.listen(PORT, () => {
   console.log(`[Server] Civic Pulse API running on port ${PORT}`);
   console.log(`[Server] Client origin: ${CLIENT_ORIGIN}`);
-  console.log('[Server] Running initial aggregation (all windows)...');
+
+  const diskReady = loadFromDisk();
+
+  if (diskReady) {
+    console.log('[Server] Serving from disk cache immediately. Background refresh queued.');
+  } else {
+    console.log('[Server] No disk cache found — first-run aggregation starting (~2-5 min)...');
+  }
+
   runAggregation().catch(console.error);
   startCron();
 });
