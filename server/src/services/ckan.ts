@@ -1,9 +1,17 @@
 import axios, { AxiosError } from 'axios';
+import https from 'https';
 
 const CKAN_BASE = 'https://data.opencity.in/api/3/action';
-const PAGE_SIZE = 1000;
+const PAGE_SIZE = 2000;
 const MAX_CONCURRENT = 16;
 const RETRY_LIMIT = 3;
+
+// Disable keep-alive: prevents EPIPE errors caused by Node reusing a socket
+// that CKAN's server has already closed on its end.
+const httpsAgent = new https.Agent({ keepAlive: false });
+
+// Network errors worth retrying — all are transient and not the caller's fault.
+const TRANSIENT_CODES = new Set(['ECONNRESET', 'ECONNABORTED', 'ETIMEDOUT', 'EPIPE', 'ENOTFOUND']);
 
 export interface RawGrievanceRecord {
   'Ward Name': string;
@@ -46,29 +54,46 @@ class Semaphore {
   }
 }
 
+// Global semaphore for lightweight requests (count checks, small datasets).
 const sem = new Semaphore(MAX_CONCURRENT);
 
-async function fetchWithRetry<T>(url: string, params: Record<string, unknown>, attempt = 0): Promise<T> {
-  await sem.acquire();
+/**
+ * Fetch with retry. Pass a per-resource local semaphore for page requests
+ * so two concurrent fetchAllRecords calls don't starve each other's slots.
+ */
+async function fetchWithRetry<T>(
+  url: string,
+  params: Record<string, unknown>,
+  attempt = 0,
+  semaphore: Semaphore = sem
+): Promise<T> {
+  await semaphore.acquire();
+  let released = false;
   try {
     const resp = await axios.get<{ success: boolean; result: T }>(url, {
       params,
       timeout: 30000,
+      httpsAgent,
     });
     if (!resp.data.success) throw new Error('CKAN API returned success=false');
     return resp.data.result;
   } catch (err) {
     const axErr = err as AxiosError;
-    if (attempt < RETRY_LIMIT && axErr.response?.status === 429) {
-      const delay = (attempt + 1) * 2000;
-      console.log(`[CKAN] Rate limited, retrying in ${delay}ms (attempt ${attempt + 1})`);
+    const errCode = axErr.code ?? (axErr.cause as NodeJS.ErrnoException | undefined)?.code ?? '';
+    const is429 = axErr.response?.status === 429;
+    const isTransient = TRANSIENT_CODES.has(errCode);
+
+    if (attempt < RETRY_LIMIT && (is429 || isTransient)) {
+      const delay = is429 ? (attempt + 1) * 2000 : (attempt + 1) * 1000;
+      console.log(`[CKAN] ${is429 ? 'Rate limited' : `Transient error (${errCode})`}, retrying in ${delay}ms (attempt ${attempt + 1})`);
+      released = true;
+      semaphore.release();
       await new Promise(r => setTimeout(r, delay));
-      sem.release();
-      return fetchWithRetry<T>(url, params, attempt + 1);
+      return fetchWithRetry<T>(url, params, attempt + 1, semaphore);
     }
     throw err;
   } finally {
-    sem.release();
+    if (!released) semaphore.release();
   }
 }
 
@@ -103,11 +128,16 @@ export async function fetchAllRecords<T = RawGrievanceRecord>(
     offsets.push(offset);
   }
 
-  // Step 3: fetch pages in parallel (semaphore limits concurrency)
+  // Step 3: fetch pages in parallel.
+  // Each fetchAllRecords call gets its OWN semaphore so two concurrent dataset
+  // fetches (2025 + 2024) don't share slots and starve each other.
+  const localSem = new Semaphore(MAX_CONCURRENT);
   const pagePromises = offsets.map(offset =>
     fetchWithRetry<CkanSearchResult<T>>(
       `${CKAN_BASE}/datastore_search`,
-      { resource_id: resourceId, limit: PAGE_SIZE, offset, fields: fieldParam }
+      { resource_id: resourceId, limit: PAGE_SIZE, offset, fields: fieldParam },
+      0,
+      localSem
     ).then(r => r.records)
   );
 
